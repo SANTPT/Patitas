@@ -1,0 +1,39 @@
+:root {
+  --primary-bg: #e0f7fa; /* Light cyan header */
+  --nav-bg: #ffffff;
+  --text-blue: #1a5b82; /* Dark blue text in header */
+  --button-purple: #c58cf2; /* Pill background purple */
+  --footer-gradient-start: #f8c8d8; /* Pinkish */
+  --footer-gradient-end: #e2c2f4;   /* Purpleish */
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --hero-bg: #b2ebf2;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Fredoka', sans-serif;
+  color: #333;
+  background-color: #f0f8ff; /* Very light blue overall bg */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+ul {
+  list-style: none;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
