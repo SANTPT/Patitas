@@ -33,7 +33,7 @@ ul {
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 66.67rem;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 1.11rem;
 }

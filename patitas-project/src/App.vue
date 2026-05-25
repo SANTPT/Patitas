@@ -1,5 +1,4 @@
 <script setup>
-// Importación de los componentes de la carpeta components
 import SiteHeader from './components/SiteHeader.vue'
 import HeroBanner from './components/HeroBanner.vue'
 import InfoCards from './components/InfoCards.vue'
@@ -8,63 +7,79 @@ import SiteFooter from './components/SiteFooter.vue'
 
 <template>
   <div class="app-wrapper">
-    
     <SiteHeader />
-
     <main class="main-content">
       <HeroBanner />
       <InfoCards />
     </main>
-
     <SiteFooter />
-    
   </div>
 </template>
 
 <style>
-/* Estilos globales (sin scoped para que afecten a toda la app si es necesario) */
-:root {
-  --primary-bg: #f5f5f5;
-  --text-blue: #2c3e50;
-  --button-purple: #c58cf2;
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined');
+
+html {
+  font-size: 18px;
+  scroll-behavior: smooth;
 }
 
-* {
+@media (max-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+:root {
+  /* Colores originales del proyecto */
+  --primary-bg: #e0f7fa;
+  --nav-bg: #ffffff;
+  --text-blue: #1a5b82;
+  --button-purple: #c58cf2;
+  --button-purple-hover: #b373e6;
+  --button-purple-soft: rgba(197, 140, 242, 0.15);
+  --page-bg: #f0f8ff;
+  --hero-bg: #b2ebf2;
+  --footer-pink: #f8c8d8;
+  --footer-purple: #e2c2f4;
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --white: #ffffff;
+  --shadow-soft: 0 4px 20px rgba(26, 91, 130, 0.08);
+  --shadow-mid: 0 8px 32px rgba(26, 91, 130, 0.14);
+  --shadow-purple: 0 4px 20px rgba(197, 140, 242, 0.35);
+}
+
+*, *::before, *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
 body {
-  /* Fuente de respaldo por si Fredoka tarda en cargar */
-  font-family: 'Fredoka', sans-serif; 
-  background-color: var(--primary-bg);
+  font-family: 'Fredoka', sans-serif;
+  background-color: var(--page-bg);
+  color: var(--text-blue);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
+a { text-decoration: none; color: inherit; }
+ul { list-style: none; }
+
 .container {
-  max-width: 1200px;
+  max-width: 66.67rem;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 1.55rem;
 }
 </style>
 
 <style scoped>
-/* Estilos específicos de este layout */
 .app-wrapper {
   display: flex;
   flex-direction: column;
-  /* min-height asegura que el footer no flote si hay poco contenido */
-  min-height: 100vh; 
+  min-height: 100vh;
 }
-
-.main-content {
-  /* flex-grow hace que el contenido ocupe todo el espacio disponible
-     empujando el footer hacia la parte inferior de la pantalla */
-  flex-grow: 1;
-}
-
-/* Transición suave entre secciones */
-main > * {
-  margin-bottom: 0; /* Ajusta según prefieras el espacio entre componentes */
-}
+.main-content { flex-grow: 1; }
 </style>
