@@ -7,7 +7,6 @@
         <div class="logo-wrap">
           <img src="../assets/logo.png" alt="Patitas Logo" class="logo" />
         </div>
-        <span class="brand-name">patitas</span>
       </div>
 
       <!-- Nav desktop -->
@@ -27,7 +26,21 @@
         <button class="icon-btn" aria-label="Carrito">
           <span class="material-symbols-outlined">shopping_cart</span>
         </button>
-        <a href="#" class="login-btn">Iniciar sesión</a>
+
+        <!-- Botón dinámico según estado de sesión -->
+        <template v-if="authStore.isAuthenticated">
+          <div class="user-pill">
+            <span class="user-avatar">{{ authStore.initials }}</span>
+            <span class="user-name">{{ authStore.displayName }}</span>
+            <button class="logout-btn" @click="authStore.logout()" aria-label="Cerrar sesión">
+              <span class="material-symbols-outlined">logout</span>
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <button class="login-btn" @click="emit('open-login')" id="header-login-btn">Iniciar sesión</button>
+        </template>
+
         <button class="hamburger" @click="menuOpen = !menuOpen" :aria-expanded="menuOpen" aria-label="Menú">
           <span :class="{ open: menuOpen }"></span>
           <span :class="{ open: menuOpen }"></span>
@@ -56,6 +69,10 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useAuthStore } from '../stores/auth';
+
+const emit = defineEmits(['open-login']);
+const authStore = useAuthStore();
 const menuOpen = ref(false);
 const navItems = ref([
   { label: 'inicio',   href: '#', active: true  },
@@ -80,15 +97,15 @@ const navItems = ref([
   display: flex;
   align-items: center;
   gap: 1.11rem;
-  padding-top: 0.89rem;
-  padding-bottom: 0.89rem;
+  padding-top: 0.15rem;
+  padding-bottom: 0.15rem;
 }
 
 /* ─── LOGO ─── */
 .logo-area {
   display: flex;
   align-items: center;
-  gap: 0.56rem;
+  gap: 0.45rem;
   flex-shrink: 0;
 }
 
@@ -97,8 +114,8 @@ const navItems = ref([
 }
 
 .logo {
-  width: 4.89rem;
-  height: 4.89rem;
+  width: 6.3rem;
+  height: 6.3rem;
   border-radius: 50%;
   object-fit: cover;
   border: 0.17rem solid rgba(255,255,255,0.9);
@@ -194,7 +211,9 @@ const navItems = ref([
   background: var(--button-purple);
   color: white;
   padding: 0.5rem 1.22rem;
+  border: none;
   border-radius: 5.5rem;
+  cursor: pointer;
   transition: all 0.22s ease;
   box-shadow: var(--shadow-purple);
   white-space: nowrap;
@@ -204,6 +223,65 @@ const navItems = ref([
   transform: translateY(-0.11rem);
   box-shadow: 0 0.33rem 1.33rem rgba(197,140,242,0.5);
 }
+
+/* ─── USER PILL (sesión activa) ─── */
+.user-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.44rem;
+  background: rgba(255,255,255,0.78);
+  backdrop-filter: blur(0.44rem);
+  border: 0.06rem solid rgba(255,255,255,0.9);
+  border-radius: 5.5rem;
+  padding: 0.28rem 0.67rem 0.28rem 0.28rem;
+  box-shadow: var(--shadow-soft);
+  transition: all 0.22s ease;
+}
+
+.user-avatar {
+  width: 1.78rem;
+  height: 1.78rem;
+  border-radius: 50%;
+  background: var(--button-purple);
+  color: white;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0.03rem;
+}
+
+.user-name {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-blue);
+  white-space: nowrap;
+  max-width: 7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logout-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-blue);
+  opacity: 0.55;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  transition: opacity 0.2s, color 0.2s;
+  margin-left: 0.11rem;
+}
+.logout-btn:hover {
+  opacity: 1;
+  color: #e53e3e;
+}
+.logout-btn .material-symbols-outlined { font-size: 1.05rem; }
 
 /* ─── HAMBURGER ─── */
 .hamburger {

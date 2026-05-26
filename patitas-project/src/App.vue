@@ -1,18 +1,23 @@
 <script setup>
+import { ref } from 'vue';
 import SiteHeader from './components/SiteHeader.vue'
 import HeroBanner from './components/HeroBanner.vue'
 import InfoCards from './components/InfoCards.vue'
 import SiteFooter from './components/SiteFooter.vue'
+import LoginModal from './components/LoginModal.vue'
+
+const showLogin = ref(false);
 </script>
 
 <template>
   <div class="app-wrapper">
-    <SiteHeader />
+    <SiteHeader @open-login="showLogin = true" />
     <main class="main-content">
       <HeroBanner />
       <InfoCards />
     </main>
     <SiteFooter />
+    <LoginModal v-model="showLogin" />
   </div>
 </template>
 
