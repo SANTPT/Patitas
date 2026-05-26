@@ -69,6 +69,11 @@ const routes = [
     name: 'comunidad',
     component: () => import('../views/ComunidadPage.vue'),
   },
+  {
+    path: '/comunidad/:id',
+    name: 'post-detalle',
+    component: () => import('../views/PostDetallePage.vue'),
+  },
 
   // ── Rutas privadas (requiresAuth) ────────────────────────────────────────
   {

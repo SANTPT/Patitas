@@ -18,14 +18,14 @@
           <p class="hero-desc">
             Conecta con otras familias en tu misma situación. Encuentra el apoyo, la comprensión y los recursos que solo quienes recorren este camino pueden ofrecer.
           </p>
-          <button @click="handleAction('Unirse a la comunidad')" class="btn-join-community">
+          <button @click="openNewPostModal" class="btn-join-community">
             <span class="material-symbols-outlined">favorite</span>
-            <span>Unirse a la comunidad</span>
+            <span>Nueva Publicación</span>
           </button>
         </div>
         <div class="hero-image-col">
           <img 
-            src="https://images.unsplash.com/photo-1587654780291-39c9404d746b?auto=format&fit=crop&w=600&q=80" 
+            :src="heroImage" 
             alt="Conexión y neurodiversidad en la Comunidad Patitas" 
             class="hero-img"
           />
@@ -39,26 +39,26 @@
           <div class="sidebar-card">
             <h3 class="sidebar-title">Explorar</h3>
             <ul class="explore-menu">
-              <li>
-                <a href="#" @click.prevent="handleAction('Grupos de apoyo')" class="explore-link">
-                  <span class="material-symbols-outlined">groups</span>
-                  <span>Grupos de apoyo</span>
-                </a>
-              </li>
-              <li class="active">
-                <a href="#" @click.prevent="handleAction('Foros de discusión')" class="explore-link">
+              <li :class="{ active: activeTab === 'foros' }">
+                <a href="#" @click.prevent="activeTab = 'foros'" class="explore-link">
                   <span class="material-symbols-outlined">forum</span>
                   <span>Foros de discusión</span>
                 </a>
               </li>
-              <li>
-                <a href="#" @click.prevent="handleAction('Eventos locales')" class="explore-link">
+              <li :class="{ active: activeTab === 'grupos' }">
+                <a href="#" @click.prevent="activeTab = 'grupos'" class="explore-link">
+                  <span class="material-symbols-outlined">groups</span>
+                  <span>Grupos de apoyo</span>
+                </a>
+              </li>
+              <li :class="{ active: activeTab === 'eventos' }">
+                <a href="#" @click.prevent="activeTab = 'eventos'" class="explore-link">
                   <span class="material-symbols-outlined">calendar_today</span>
                   <span>Eventos locales</span>
                 </a>
               </li>
-              <li>
-                <a href="#" @click.prevent="handleAction('Historias de éxito')" class="explore-link">
+              <li :class="{ active: activeTab === 'historias' }">
+                <a href="#" @click.prevent="activeTab = 'historias'" class="explore-link">
                   <span class="material-symbols-outlined">workspace_premium</span>
                   <span>Historias de éxito</span>
                 </a>
@@ -78,107 +78,194 @@
 
         <!-- Columna Derecha: Contenido Principal -->
         <main class="main-content-col">
-          <!-- Tarjetas de Información Superior (Grid 2 columnas) -->
-          <div class="info-grid">
-            <div class="info-card-box purple-accent">
-              <div class="card-icon-wrap purple">
-                <span class="material-symbols-outlined">verified_user</span>
+          
+          <!-- CONTENIDO: FOROS DE DISCUSIÓN -->
+          <div v-if="activeTab === 'foros'" class="tab-content forum-tab">
+            <div class="forum-header">
+              <div class="header-left">
+                <h2 class="forum-title">Foro de Familias</h2>
+                <p class="forum-subtitle">Conversaciones, dudas y experiencias compartidas por la comunidad.</p>
               </div>
-              <div class="card-text-wrap">
-                <h4>Tu seguridad es prioridad</h4>
-                <p>
-                  Mantenemos un entorno seguro y privado. Todas nuestras interacciones se rigen por normas de respeto mutuo y confidencialidad absoluta para proteger a tu familia.
-                </p>
+              <button @click="openNewPostModal" class="btn-new-post">
+                <span class="material-symbols-outlined">add_comment</span>
+                <span>Crear Publicación</span>
+              </button>
+            </div>
+
+            <!-- Filtros de categoría -->
+            <div class="category-filters">
+              <button 
+                v-for="cat in categories" 
+                :key="cat"
+                @click="selectedCategory = cat"
+                class="filter-tab-btn"
+                :class="{ active: selectedCategory === cat }"
+              >
+                {{ cat }}
+              </button>
+            </div>
+
+            <!-- Lista de posts -->
+            <div v-if="isPostsLoading" class="posts-skeleton-list">
+              <div v-for="n in 3" :key="n" class="post-skeleton-card">
+                <div class="sk-header">
+                  <div class="sk-avatar"></div>
+                  <div class="sk-meta">
+                    <div class="sk-line short"></div>
+                    <div class="sk-line medium"></div>
+                  </div>
+                </div>
+                <div class="sk-body">
+                  <div class="sk-line long"></div>
+                  <div class="sk-line medium"></div>
+                </div>
               </div>
             </div>
 
-            <div class="info-card-box blue-accent">
-              <div class="card-icon-wrap blue">
-                <span class="material-symbols-outlined">share_reviews</span>
-              </div>
-              <div class="card-text-wrap">
-                <h4>El valor de compartir</h4>
-                <p>
-                  Intercambiar estrategias, recursos y simplemente ser escuchado reduce significativamente el estrés parental y fortalece el desarrollo de los niños.
-                </p>
-              </div>
+            <div v-else-if="filteredPosts.length === 0" class="no-posts-view">
+              <span class="material-symbols-outlined no-posts-icon">forum</span>
+              <p>No se encontraron publicaciones en esta categoría.</p>
+            </div>
+
+            <div v-else class="posts-list">
+              <PostCard 
+                v-for="post in filteredPosts" 
+                :key="post.id" 
+                :post="post" 
+              />
             </div>
           </div>
 
-          <!-- Testimonios de la Comunidad -->
-          <div class="testimonial-box">
-            <span class="testimonial-label">Testimonios de la comunidad</span>
-            <span class="quote-giant-icon">99</span>
-            <blockquote class="testimonial-quote">
-              "Encontrar esta comunidad fue como respirar profundo después de mucho tiempo. Aquí no tengo que explicar por qué mi hijo hace lo que hace, todos entienden."
-            </blockquote>
-            <div class="testimonial-author">
-              <div class="author-avatar">M</div>
-              <div class="author-info">
-                <strong class="author-name">María G.</strong>
-                <span class="author-role">Mamá de Lucas (5 años)</span>
+          <!-- CONTENIDO: GRUPOS DE APOYO -->
+          <div v-else-if="activeTab === 'grupos'" class="tab-content groups-tab">
+            <!-- Tarjetas de Información Superior -->
+            <div class="info-grid">
+              <div class="info-card-box purple-accent">
+                <div class="card-icon-wrap purple">
+                  <span class="material-symbols-outlined">verified_user</span>
+                </div>
+                <div class="card-text-wrap">
+                  <h4>Tu seguridad es prioridad</h4>
+                  <p>
+                    Mantenemos un entorno seguro y privado. Todas nuestras interacciones se rigen por normas de respeto mutuo y confidencialidad absoluta para proteger a tu familia.
+                  </p>
+                </div>
               </div>
+
+              <div class="info-card-box blue-accent">
+                <div class="card-icon-wrap blue">
+                  <span class="material-symbols-outlined">share_reviews</span>
+                </div>
+                <div class="card-text-wrap">
+                  <h4>El valor de compartir</h4>
+                  <p>
+                    Intercambiar estrategias, recursos y simplemente ser escuchado reduce significativamente el estrés parental y fortalece el desarrollo de los niños.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Grupos Destacados -->
+            <section class="groups-section">
+              <div class="section-header">
+                <h3>Grupos destacados</h3>
+                <a href="#" @click.prevent="handleAction('Ver todos los grupos')" class="link-see-all">
+                  <span>Ver todos</span>
+                  <span class="material-symbols-outlined">arrow_forward</span>
+                </a>
+              </div>
+
+              <div class="groups-grid">
+                <!-- Grupo 1 -->
+                <article class="notebook-group-card purple">
+                  <div class="notebook-rings">
+                    <div class="ring" v-for="n in 5" :key="n"></div>
+                  </div>
+                  <div class="group-card-body">
+                    <div class="group-header">
+                      <span class="group-badge purple">Intervención</span>
+                      <span class="material-symbols-outlined group-icon purple">sentiment_dissatisfied</span>
+                    </div>
+                    <h4 class="group-title">Recién Diagnosticados</h4>
+                    <p class="group-desc">
+                      Un espacio para orientar los primeros pasos y gestionar el impacto emocional inicial.
+                    </p>
+                    <button @click="handleAction('Explorar grupo Recién Diagnosticados')" class="btn-explore-group purple">
+                      <span>Explorar grupo</span>
+                      <span class="material-symbols-outlined">arrow_forward</span>
+                    </button>
+                  </div>
+                </article>
+
+                <!-- Grupo 2 -->
+                <article class="notebook-group-card blue">
+                  <div class="notebook-rings">
+                    <div class="ring" v-for="n in 5" :key="n"></div>
+                  </div>
+                  <div class="group-card-body">
+                    <div class="group-header">
+                      <span class="group-badge blue">Escolaridad</span>
+                      <span class="material-symbols-outlined group-icon blue">school</span>
+                    </div>
+                    <h4 class="group-title">Etapa Escolar y TEA</h4>
+                    <p class="group-desc">
+                      Debates sobre inclusión, apoyos escolares y derechos educativos en la primaria.
+                    </p>
+                    <button @click="handleAction('Explorar grupo Etapa Escolar y TEA')" class="btn-explore-group blue">
+                      <span>Explorar grupo</span>
+                      <span class="material-symbols-outlined">arrow_forward</span>
+                    </button>
+                  </div>
+                </article>
+              </div>
+            </section>
+          </div>
+
+          <!-- CONTENIDO: EVENTOS LOCALES -->
+          <div v-else-if="activeTab === 'eventos'" class="tab-content events-tab">
+            <div class="placeholder-section">
+              <span class="material-symbols-outlined placeholder-icon">calendar_today</span>
+              <h3>Próximos Eventos Locales</h3>
+              <p>Estamos organizando charlas presenciales de contención y círculos de juego inclusivo. ¡Muy pronto anunciaremos las fechas en tu región!</p>
+              <button @click="handleAction('Subscribirse a boletín de eventos')" class="btn-cta-primary">
+                Notificarme por correo
+              </button>
             </div>
           </div>
 
-          <!-- Grupos Destacados -->
-          <section class="groups-section">
-            <div class="section-header">
-              <h3>Grupos destacados</h3>
-              <a href="#" @click.prevent="handleAction('Ver todos los grupos')" class="link-see-all">
-                <span>Ver todos</span>
-                <span class="material-symbols-outlined">arrow_forward</span>
-              </a>
+          <!-- CONTENIDO: HISTORIAS DE ÉXITO -->
+          <div v-else-if="activeTab === 'historias'" class="tab-content stories-tab">
+            <!-- Testimonios de la Comunidad -->
+            <div class="testimonial-box">
+              <span class="testimonial-label">Testimonios de la comunidad</span>
+              <span class="quote-giant-icon">99</span>
+              <blockquote class="testimonial-quote">
+                "Encontrar esta comunidad fue como respirar profundo después de mucho tiempo. Aquí no tengo que explicar por qué mi hijo hace lo que hace, todos entienden."
+              </blockquote>
+              <div class="testimonial-author">
+                <div class="author-avatar">M</div>
+                <div class="author-info">
+                  <strong class="author-name">María G.</strong>
+                  <span class="author-role">Mamá de Lucas (5 años)</span>
+                </div>
+              </div>
             </div>
 
-            <div class="groups-grid">
-              <!-- Grupo 1 -->
-              <article class="notebook-group-card purple">
-                <!-- Anillas metálicas de cuaderno en el borde izquierdo -->
-                <div class="notebook-rings">
-                  <div class="ring" v-for="n in 5" :key="n"></div>
+            <div class="testimonial-box blue-theme">
+              <span class="testimonial-label">Historias de superación</span>
+              <span class="quote-giant-icon">99</span>
+              <blockquote class="testimonial-quote">
+                "Mateo no toleraba los ruidos fuertes y nos resultaba imposible ir al supermercado. Con los pictogramas de anticipación y los cascos canceladores, hoy hace las compras con nosotros."
+              </blockquote>
+              <div class="testimonial-author">
+                <div class="author-avatar">L</div>
+                <div class="author-info">
+                  <strong class="author-name">Laura M.</strong>
+                  <span class="author-role">Mamá de Mateo (4 años)</span>
                 </div>
-
-                <div class="group-card-body">
-                  <div class="group-header">
-                    <span class="group-badge purple">Intervención</span>
-                    <span class="material-symbols-outlined group-icon purple">sentiment_dissatisfied</span>
-                  </div>
-                  <h4 class="group-title">Recién Diagnosticados</h4>
-                  <p class="group-desc">
-                    Un espacio para orientar los primeros pasos y gestionar el impacto emocional inicial.
-                  </p>
-                  <button @click="handleAction('Explorar grupo Recién Diagnosticados')" class="btn-explore-group purple">
-                    <span>Explorar grupo</span>
-                    <span class="material-symbols-outlined">arrow_forward</span>
-                  </button>
-                </div>
-              </article>
-
-              <!-- Grupo 2 -->
-              <article class="notebook-group-card blue">
-                <!-- Anillas metálicas de cuaderno en el borde izquierdo -->
-                <div class="notebook-rings">
-                  <div class="ring" v-for="n in 5" :key="n"></div>
-                </div>
-
-                <div class="group-card-body">
-                  <div class="group-header">
-                    <span class="group-badge blue">Escolaridad</span>
-                    <span class="material-symbols-outlined group-icon blue">school</span>
-                  </div>
-                  <h4 class="group-title">Etapa Escolar y TEA</h4>
-                  <p class="group-desc">
-                    Debates sobre inclusión, apoyos escolares y derechos educativos en la primaria.
-                  </p>
-                  <button @click="handleAction('Explorar grupo Etapa Escolar y TEA')" class="btn-explore-group blue">
-                    <span>Explorar grupo</span>
-                    <span class="material-symbols-outlined">arrow_forward</span>
-                  </button>
-                </div>
-              </article>
+              </div>
             </div>
-          </section>
+          </div>
 
           <!-- Banner CTA Inferior -->
           <div class="bottom-cta-banner">
@@ -198,25 +285,87 @@
         </main>
       </div>
     </div>
+
+    <!-- Modal para Redactar Post -->
+    <NewPostModal v-model="showNewPostModal" @post-created="handlePostCreated" />
   </div>
 </template>
 
 <script setup>
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import api from '../services/api';
+import PostCard from '../components/PostCard.vue';
+import NewPostModal from '../components/NewPostModal.vue';
+import heroImage from '../assets/hero.png';
 
 const router = useRouter();
 const authStore = useAuthStore();
 
-const handleAction = (actionName) => {
-  if (!authStore.isAuthenticated) {
-    // Si no está autenticado, abre el modal de login
-    router.push({ query: { auth: 'login' } });
-  } else {
-    // Si está autenticado, simular entrada a la sección/grupo
-    alert(`Te has dirigido a la sección privada: "${actionName}"`);
+const activeTab = ref('foros');
+const posts = ref([]);
+const isPostsLoading = ref(true);
+const selectedCategory = ref('Todos');
+const showNewPostModal = ref(false);
+
+const categories = ['Todos', 'General', 'Consejos', 'Dudas'];
+
+async function fetchPosts() {
+  isPostsLoading.value = true;
+  try {
+    const res = await api.get('/posts');
+    posts.value = res.data;
+  } catch (err) {
+    console.error('Error al cargar posts:', err);
+  } finally {
+    isPostsLoading.value = false;
   }
-};
+}
+
+const filteredPosts = computed(() => {
+  if (selectedCategory.value === 'Todos') {
+    return posts.value;
+  }
+  return posts.value.filter(p => p.category.toLowerCase() === selectedCategory.value.toLowerCase());
+});
+
+function handleAction(actionName) {
+  if (!authStore.isAuthenticated) {
+    window.dispatchEvent(new CustomEvent('open-login-modal'));
+  } else {
+    const event = new CustomEvent('show-toast', {
+      detail: {
+        message: `Te has dirigido a la sección privada: "${actionName}"`,
+        type: 'info'
+      }
+    });
+    window.dispatchEvent(event);
+  }
+}
+
+function openNewPostModal() {
+  if (!authStore.isAuthenticated) {
+    const event = new CustomEvent('show-toast', {
+      detail: {
+        message: 'Debes iniciar sesión para publicar en el foro.',
+        type: 'info'
+      }
+    });
+    window.dispatchEvent(event);
+    window.dispatchEvent(new CustomEvent('open-login-modal'));
+  } else {
+    showNewPostModal.value = true;
+  }
+}
+
+function handlePostCreated(newPost) {
+  posts.value.unshift(newPost);
+}
+
+onMounted(() => {
+  fetchPosts();
+});
 </script>
 
 <style scoped>
@@ -852,6 +1001,203 @@ const handleAction = (actionName) => {
 .btn-cta-secondary:hover {
   border-color: white;
   background: rgba(255, 255, 255, 0.05);
+}
+
+
+/* ─── FORUM TAB & ELEMENTS ─── */
+.forum-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.11rem;
+  margin-bottom: 1.55rem;
+  flex-wrap: wrap;
+}
+
+.forum-title {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--text-blue);
+  margin: 0;
+}
+
+.forum-subtitle {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  margin: 0.22rem 0 0 0;
+}
+
+.btn-new-post {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: white;
+  background: var(--button-purple);
+  border: none;
+  padding: 0.67rem 1.33rem;
+  border-radius: 5.5rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.44rem;
+  box-shadow: var(--shadow-purple);
+  transition: all 0.2s ease;
+}
+
+.btn-new-post:hover {
+  background: var(--button-purple-hover);
+  transform: translateY(-1px);
+}
+
+/* Category Filters */
+.category-filters {
+  display: flex;
+  gap: 0.56rem;
+  margin-bottom: 1.55rem;
+  overflow-x: auto;
+  padding-bottom: 0.33rem;
+}
+
+.filter-tab-btn {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-blue);
+  background: white;
+  border: 1.5px solid #edf2f7;
+  padding: 0.44rem 1.11rem;
+  border-radius: 5.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.filter-tab-btn:hover {
+  background: #f7fafc;
+  border-color: #cbd5e0;
+}
+
+.filter-tab-btn.active {
+  background: var(--button-purple);
+  color: white;
+  border-color: var(--button-purple);
+  box-shadow: var(--shadow-purple);
+}
+
+/* Posts List */
+.posts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.11rem;
+}
+
+/* Skeletons */
+.posts-skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.11rem;
+}
+
+.post-skeleton-card {
+  background: white;
+  border-radius: 1.33rem;
+  padding: 1.33rem;
+  border: 1px solid rgba(26, 91, 130, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sk-header {
+  display: flex;
+  align-items: center;
+  gap: 0.78rem;
+}
+
+.sk-avatar {
+  width: 2.44rem;
+  height: 2.44rem;
+  border-radius: 50%;
+  background: #edf2f7;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.sk-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.33rem;
+  flex: 1;
+}
+
+.sk-line {
+  height: 0.67rem;
+  background: #edf2f7;
+  border-radius: 0.22rem;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.sk-line.short { width: 30%; }
+.sk-line.medium { width: 60%; }
+.sk-line.long { width: 90%; }
+
+.sk-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.56rem;
+}
+
+@keyframes pulse {
+  0% { background-color: #edf2f7; }
+  50% { background-color: #e2e8f0; }
+  100% { background-color: #edf2f7; }
+}
+
+/* No Posts & Placeholders */
+.no-posts-view,
+.placeholder-section {
+  background: white;
+  border-radius: 1.5rem;
+  padding: 3.33rem 1.55rem;
+  text-align: center;
+  border: 1.5px dashed #edf2f7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.67rem;
+  width: 100%;
+}
+
+.no-posts-icon,
+.placeholder-icon {
+  font-size: 3.33rem;
+  color: #cbd5e0;
+}
+
+.placeholder-section h3 {
+  font-size: 1.33rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.placeholder-section p {
+  font-size: 0.95rem;
+  opacity: 0.8;
+  max-width: 28rem;
+  margin: 0 0 1.11rem 0;
+  line-height: 1.5;
+}
+
+.blue-theme {
+  background: #f0fdfa !important;
+  border: 1px solid rgba(13, 148, 136, 0.1) !important;
+}
+
+.blue-theme .quote-giant-icon {
+  color: rgba(13, 148, 136, 0.08) !important;
+}
+
+.blue-theme .author-avatar {
+  background: #0d9488 !important;
 }
 
 /* ─── RESPONSIVE ─── */

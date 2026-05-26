@@ -29,7 +29,9 @@
         </div>
         <!-- Cuerpo -->
         <div class="card-body">
-          <h3 class="card-title">{{ card.title }}</h3>
+          <h3 class="card-title">
+            <RouterLink :to="card.to" class="card-title-link">{{ card.title }}</RouterLink>
+          </h3>
           <p class="card-desc">{{ card.desc }}</p>
           <RouterLink :to="card.to" class="card-btn">
             Leer más
@@ -265,6 +267,16 @@ const cards = ref([
   color: var(--text-blue);
   margin-bottom: 0.67rem;
   line-height: 1.25;
+}
+
+.card-title-link {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.card-title-link:hover {
+  color: var(--button-purple, #c58cf2);
 }
 
 .card-desc {
