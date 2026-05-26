@@ -14,7 +14,7 @@
           <div class="modal-left">
             <div class="brand-tag">
               <img :src="logoImg" alt="Patitas Logo" class="brand-logo" />
-              <span class="brand-name">patitas</span>
+              <span class="brand-name"></span>
             </div>
             <h2 class="welcome-title">Bienvenidos<br />a casa</h2>
             <p class="welcome-sub">
@@ -248,7 +248,8 @@ function loginFacebook() {
   padding: 2.5rem 2rem 1.5rem;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
   position: relative;
   overflow: hidden;
 }
@@ -256,17 +257,22 @@ function loginFacebook() {
 .brand-tag {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  justify-self: center;
+  margin-bottom: 0.5rem;
+  width: 100%;
 }
 
 .brand-logo {
-  width: 2.5rem;
-  height: 2.5rem;
+  margin-left: auto;
+  margin-right: auto;
+  width: 7rem;
+  height: 7rem;
   border-radius: 50%;
   border: 2px solid white;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
   object-fit: cover;
+  display: block;
+
+
 }
 
 .brand-name {
@@ -283,6 +289,8 @@ function loginFacebook() {
   color: var(--text-blue);
   line-height: 1.2;
   margin-bottom: 0.75rem;
+  width: 100%;
+  text-align: center;
 }
 
 .welcome-sub {
@@ -291,6 +299,8 @@ function loginFacebook() {
   opacity: 0.8;
   line-height: 1.6;
   max-width: 280px;
+  margin-left: auto;
+  margin-right: auto;
   margin-bottom: 1rem;
 }
 
@@ -331,12 +341,15 @@ function loginFacebook() {
   font-weight: 700;
   color: var(--text-blue);
   margin-bottom: 0.25rem;
+  text-align: center;
 }
 
 .form-sub {
   font-size: 0.9rem;
   color: #888;
   margin-bottom: 1.5rem;
+  width: 100%;
+  text-align: center;
 }
 
 /* ── Campos del formulario ── */
