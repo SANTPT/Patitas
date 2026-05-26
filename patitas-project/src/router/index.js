@@ -35,6 +35,11 @@ const routes = [
     component: () => import('../views/RecursosPage.vue'),
   },
   {
+    path: '/recursos/:id',
+    name: 'recurso-detalle',
+    component: () => import('../views/RecursoDetallePage.vue'),
+  },
+  {
     path: '/tienda',
     name: 'tienda',
     component: () => import('../views/TiendaPage.vue'),

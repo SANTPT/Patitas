@@ -13,7 +13,20 @@
       <nav class="main-nav">
         <ul>
           <li v-for="item in navItems" :key="item.label">
-            <a :href="item.href" :class="{ active: item.active }">{{ item.label }}</a>
+            <RouterLink
+              v-if="item.href.startsWith('/')"
+              :to="item.href"
+              :class="{ active: route.path === item.href }"
+            >
+              {{ item.label }}
+            </RouterLink>
+            <a
+              v-else
+              :href="item.href"
+              :class="{ active: route.path === item.href }"
+            >
+              {{ item.label }}
+            </a>
           </li>
         </ul>
       </nav>
@@ -53,7 +66,22 @@
     <nav class="mobile-nav" :class="{ open: menuOpen }">
       <ul>
         <li v-for="item in navItems" :key="item.label">
-          <a :href="item.href" :class="{ active: item.active }" @click="menuOpen = false">{{ item.label }}</a>
+          <RouterLink
+            v-if="item.href.startsWith('/')"
+            :to="item.href"
+            :class="{ active: route.path === item.href }"
+            @click="menuOpen = false"
+          >
+            {{ item.label }}
+          </RouterLink>
+          <a
+            v-else
+            :href="item.href"
+            :class="{ active: route.path === item.href }"
+            @click="menuOpen = false"
+          >
+            {{ item.label }}
+          </a>
         </li>
         <!-- Sección de Autenticación Móvil -->
         <li class="mobile-auth-item">
@@ -88,18 +116,20 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
+import { RouterLink, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 
 const emit = defineEmits(['open-login']);
 const authStore = useAuthStore();
 const menuOpen = ref(false);
 const isSticky = ref(false);
+const route = useRoute();
 const navItems = ref([
-  { label: 'inicio',   href: '#', active: true  },
-  { label: 'recursos', href: '#', active: false },
-  { label: 'tienda',   href: '#', active: false },
-  { label: 'nosotros', href: '#', active: false },
-  { label: 'contacto', href: '#', active: false },
+  { label: 'inicio',   href: '/' },
+  { label: 'recursos', href: '/recursos' },
+  { label: 'tienda',   href: '/tienda' },
+  { label: 'nosotros', href: '#' },
+  { label: 'contacto', href: '#' },
 ]);
 
 const handleScroll = () => {

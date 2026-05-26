@@ -31,10 +31,10 @@
         <div class="card-body">
           <h3 class="card-title">{{ card.title }}</h3>
           <p class="card-desc">{{ card.desc }}</p>
-          <a href="#" class="card-btn">
+          <RouterLink :to="card.to" class="card-btn">
             Leer más
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-          </a>
+          </RouterLink>
         </div>
       </article>
     </div>
@@ -46,7 +46,7 @@
           <h3>¿Acabas de recibir un diagnóstico?</h3>
           <p>Estamos aquí para acompañarte. No estás solo/a.</p>
         </div>
-        <a href="#" class="cta-btn">Únete a la comunidad</a>
+        <RouterLink to="/comunidad" class="cta-btn">Únete a la comunidad</RouterLink>
       </div>
     </div>
   </section>
@@ -54,6 +54,8 @@
 
 <script setup>
 import { ref } from 'vue';
+import { RouterLink } from 'vue-router';
+
 const cards = ref([
   {
     emoji: '🧩',
@@ -61,6 +63,7 @@ const cards = ref([
     title: 'QUÉ ES EL AUTISMO',
     desc: 'Aprende sobre el Trastorno del Espectro Autista, sus señales tempranas y cómo se manifiesta en los primeros años de vida.',
     color: '#c58cf2',
+    to: '/recursos/1'
   },
   {
     emoji: '🌱',
@@ -68,6 +71,7 @@ const cards = ref([
     title: 'GUÍA DE ATENCIÓN TEMPRANA',
     desc: 'Pasos concretos tras el diagnóstico: terapias, centros de apoyo, derechos de tu hijo y cómo comenzar hoy mismo.',
     color: '#5bbfd6',
+    to: '/recursos/5'
   },
   {
     emoji: '🤝',
@@ -75,6 +79,7 @@ const cards = ref([
     title: 'COMUNIDAD PATITAS',
     desc: 'Conecta con otras familias, comparte tu experiencia y encuentra el apoyo que solo alguien que lo vive puede dar.',
     color: '#f09dc0',
+    to: '/recursos/16'
   },
 ]);
 </script>
