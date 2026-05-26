@@ -145,7 +145,7 @@ if (isMockEnabled) {
 
       // Interceptamos recursos
       if (url.includes('/recursos')) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        
 
         const mockResources = [
           {
@@ -369,7 +369,7 @@ if (isMockEnabled) {
 
       // Interceptamos productos de la tienda
       if (url.includes('/productos')) {
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        
 
         const mockProducts = [
           {
@@ -488,7 +488,7 @@ if (isMockEnabled) {
 
       // Interceptamos posts de la comunidad
       if (url.includes('/posts')) {
-        await new Promise((resolve) => setTimeout(resolve, 600));
+        
 
         // 1. POST /posts/:id/likes
         const matchLike = url.match(/\/posts\/(\d+)\/likes/);
@@ -642,7 +642,7 @@ if (isMockEnabled) {
       // Interceptamos rutas de autenticación
       if (url.includes('/auth/')) {
         // Retraso de red simulado para una UX realista (spinners, loaders, etc.)
-        await new Promise((resolve) => setTimeout(resolve, 800));
+        
 
         let mockData = {};
 
