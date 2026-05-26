@@ -260,42 +260,6 @@ if (isMockEnabled) {
             author: "Valencia, España",
             readTime: "Asociación Civil",
             content: "Fundada por padres y para padres. En Tejiendo Redes creemos firmemente que la familia es la base del éxito. Ofrecemos talleres formativos gratuitos de escuelas de padres, soporte terapéutico grupal para hermanos y planes de ocio y respiro familiar en entornos adaptados."
-          },
-          {
-            id: 16,
-            title: "Comunidad Patitas: Compartiendo el camino de la neurodiversidad",
-            category: "articulos",
-            description: "Conecta con otras familias, comparte tu experiencia y encuentra el apoyo que necesitas.",
-            image: "/atencion_temprana.png",
-            author: "Equipo Patitas",
-            readTime: "Comunidad",
-            updatedAt: "28 May 2026",
-            intro: "En Patitas creemos que ninguna familia debe caminar sola. Nuestra comunidad es un espacio seguro de encuentro, capacitación y apoyo mutuo para padres y cuidadores de niños dentro del espectro autista.",
-            content: "En Patitas creemos que ninguna familia debe caminar sola. Nuestra comunidad es un espacio seguro de encuentro, capacitación y apoyo mutuo para padres y cuidadores de niños dentro del espectro autista.",
-            sections: [
-              {
-                id: "quienes-somos",
-                title: "¿Qué es la Comunidad Patitas?",
-                content: "Es un espacio diseñado por y para familias, donde compartimos vivencias, resolvemos dudas cotidianas y celebramos juntos cada logro de nuestros pequeños. Aquí encontrarás contención emocional, talleres formativos y actividades lúdicas inclusivas.",
-                type: "text"
-              },
-              {
-                type: "tips",
-                title: "Nuestros pilares",
-                items: [
-                  "01. Respeto absoluto a la neurodiversidad y la individualidad de cada niño.",
-                  "02. Apoyo mutuo libre de juicios o culpas.",
-                  "03. Acceso a recursos prácticos validados por especialistas."
-                ]
-              },
-              {
-                type: "cards",
-                items: [
-                  { title: "Escuela de Padres", desc: "Talleres mensuales sobre manejo conductual, integración sensorial y comunicación interactiva.", theme: "purple" },
-                  { title: "Encuentros de Ocio", desc: "Actividades recreativas adaptadas de fin de semana para que los niños disfruten en un entorno amigable.", theme: "blue" }
-                ]
-              }
-            ]
           }
         ];
 

@@ -79,7 +79,7 @@ const cards = ref([
     title: 'COMUNIDAD PATITAS',
     desc: 'Conecta con otras familias, comparte tu experiencia y encuentra el apoyo que solo alguien que lo vive puede dar.',
     color: '#f09dc0',
-    to: '/recursos/16'
+    to: '/comunidad'
   },
 ]);
 </script>

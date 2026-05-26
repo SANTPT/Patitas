@@ -64,14 +64,13 @@ const routes = [
     name: 'articulo',
     component: () => import('../views/ArticuloPage.vue'),
   },
-
-  // ── Rutas privadas (requiresAuth) ────────────────────────────────────────
   {
     path: '/comunidad',
     name: 'comunidad',
     component: () => import('../views/ComunidadPage.vue'),
-    meta: { requiresAuth: true },
   },
+
+  // ── Rutas privadas (requiresAuth) ────────────────────────────────────────
   {
     path: '/perfil',
     name: 'perfil',
