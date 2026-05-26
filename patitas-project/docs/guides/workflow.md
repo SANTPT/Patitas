@@ -139,19 +139,19 @@ Una historia de usuario se considera **terminada** solo cuando cumple todos los 
 
 | ID | Historia | Puntos | Prioridad | Estado |
 | :--- | :--- | :---: | :--- | :--- |
-| FE-01 | Header de navegación responsivo | 3 | Alta | 🟡 Incompleto (falta sticky scroll) |
+| FE-01 | Header de navegación responsivo | 3 | Alta | ✅ Hecho |
 | FE-02 | Hero banner con video badge | 3 | Alta | ✅ Hecho |
 | FE-03 | Cards informativas + CTA | 3 | Alta | ✅ Hecho |
 | FE-04 | Footer con newsletter y pagos | 3 | Alta | ✅ Hecho |
-| FE-05 | Página de Login (modal) | 5 | Crítica | 🟡 Incompleto (UI lista, sin API/Router/Pinia) |
-| FE-06 | Página de Registro | 5 | Alta | 🔴 Pendiente |
+| FE-05 | Página de Login (modal) | 5 | Crítica | 🟡 Incompleto (UI lista, sin API real) |
+| FE-06 | Página de Registro | 5 | Alta | ✅ Hecho (con simulación/mock API) |
 | FE-07 | Recursos con filtros | 8 | Alta | 🔴 Pendiente |
 | FE-08 | Tienda de productos | 13 | Media | 🔴 Pendiente |
 | FE-09 | Comunidad — foro | 13 | Media | 🔴 Pendiente |
 | FE-10 | Mapa de centros | 8 | Media | 🔴 Pendiente |
 | FE-11 | Perfil de usuario | 8 | Baja | 🔴 Pendiente |
-| FE-12 | Vue Router + rutas protegidas | 5 | Crítica | 🔴 Pendiente |
-| FE-13 | Store de auth con Pinia | 5 | Crítica | 🔴 Pendiente |
+| FE-12 | Vue Router + rutas protegidas | 5 | Crítica | ✅ Hecho |
+| FE-13 | Store de auth con Pinia | 5 | Crítica | ✅ Hecho |
 | FE-14 | Blog de artículos | 8 | Baja | 🔴 Pendiente |
 
 ---

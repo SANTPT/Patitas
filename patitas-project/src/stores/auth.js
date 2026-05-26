@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import api from '../services/api';
 
 /**
  * Store global de autenticación — FE-13
@@ -55,7 +56,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   /**
    * Inicia sesión con email y contraseña.
-   * Actualmente simula la llamada a la API — en producción conectar con POST /api/auth/login.
+   * Conecta con POST /auth/login.
    * @param {string} email
    * @param {string} password
    * @returns {Promise<{success: boolean, error?: string}>}
@@ -65,39 +66,15 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
 
     try {
-      // TODO (FE-05 T-FE05-04): Reemplazar con llamada real a la API:
-      // const response = await fetch('/api/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ email, password }),
-      // });
-      // if (!response.ok) {
-      //   const data = await response.json();
-      //   throw new Error(data.message || 'Credenciales incorrectas');
-      // }
-      // const data = await response.json();
-
-      // Simulación temporal — eliminar cuando haya backend real
-      await new Promise(resolve => setTimeout(resolve, 1200));
-
-      // Datos simulados de respuesta exitosa
-      const data = {
-        token: `mock-token-${Date.now()}`,
-        user: {
-          id: 1,
-          name: 'Padre Demo',
-          email,
-          role: 'user',
-          createdAt: new Date().toISOString(),
-        },
-      };
+      const response = await api.post('/auth/login', { email, password });
+      const { token: newToken, user: newUser } = response.data;
 
       // Guardar en estado y persistir en localStorage
-      _setSession(data.token, data.user);
+      _setSession(newToken, newUser);
 
       return { success: true };
     } catch (err) {
-      const msg = err.message || 'Error al iniciar sesión. Inténtalo de nuevo.';
+      const msg = err.response?.data?.message || err.message || 'Error al iniciar sesión. Inténtalo de nuevo.';
       error.value = msg;
       return { success: false, error: msg };
     } finally {
@@ -111,7 +88,6 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function logout() {
     _clearSession();
-    // TODO (FE-12): redirigir a '/' con Vue Router: router.push('/')
   }
 
   /**
@@ -124,19 +100,66 @@ export const useAuthStore = defineStore('auth', () => {
 
     isLoading.value = true;
     try {
-      // TODO (FE-05 T-FE05-04): Conectar con GET /api/auth/me
-      // const response = await fetch('/api/auth/me', {
-      //   headers: { Authorization: `Bearer ${token.value}` },
-      // });
-      // if (!response.ok) throw new Error('Token inválido');
-      // const data = await response.json();
-      // user.value = data.user;
-
-      // Si el usuario ya está en localStorage, se restauró en el init.
-      // En producción, verificar el token contra la API aquí.
+      const response = await api.get('/auth/me');
+      user.value = response.data.user;
+      localStorage.setItem('patitas_user', JSON.stringify(user.value));
     } catch {
       // Token expirado o inválido — limpiar sesión
       _clearSession();
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /**
+   * Registra un nuevo usuario con nombre, email y contraseña.
+   * Conecta con POST /auth/register.
+   * @param {string} name
+   * @param {string} email
+   * @param {string} password
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async function register(name, email, password) {
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      const response = await api.post('/auth/register', { name, email, password });
+      const { token: newToken, user: newUser } = response.data;
+
+      // Guardar en estado y persistir
+      _setSession(newToken, newUser);
+
+      return { success: true };
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Error al registrarse. Inténtalo de nuevo.';
+      error.value = msg;
+      return { success: false, error: msg };
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /**
+   * Inicia sesión o registra mediante un proveedor OAuth (Google, Facebook, Apple).
+   * @param {string} provider
+   * @param {string} email
+   * @returns {Promise<{success: boolean}>}
+   */
+  async function loginOAuth(provider, email = '') {
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      const response = await api.post('/auth/oauth', { provider, email });
+      const { token: newToken, user: newUser } = response.data;
+
+      _setSession(newToken, newUser);
+      return { success: true };
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Error al iniciar sesión social.';
+      error.value = msg;
+      return { success: false, error: msg };
     } finally {
       isLoading.value = false;
     }
@@ -174,5 +197,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     me,
+    register,
+    loginOAuth,
   };
 });

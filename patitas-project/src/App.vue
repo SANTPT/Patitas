@@ -1,25 +1,45 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch, onMounted } from 'vue';
+import { RouterView, useRoute, useRouter } from 'vue-router';
 import SiteHeader from './components/SiteHeader.vue'
-import HeroBanner from './components/HeroBanner.vue'
-import InfoCards from './components/InfoCards.vue'
 import SiteFooter from './components/SiteFooter.vue'
 import LoginModal from './components/LoginModal.vue'
 
 const showLogin = ref(false);
+const route = useRoute();
+const router = useRouter();
+
+function checkAuthQuery() {
+  if (route.query.auth === 'login') {
+    showLogin.value = true;
+    // Limpiar el parámetro de la URL de forma limpia
+    router.replace({ query: { ...route.query, auth: undefined } });
+  }
+}
+
+watch(() => route.query.auth, (newVal) => {
+  if (newVal === 'login') {
+    showLogin.value = true;
+    router.replace({ query: { ...route.query, auth: undefined } });
+  }
+});
+
+onMounted(() => {
+  checkAuthQuery();
+});
 </script>
 
 <template>
   <div class="app-wrapper">
     <SiteHeader @open-login="showLogin = true" />
     <main class="main-content">
-      <HeroBanner />
-      <InfoCards />
+      <RouterView />
     </main>
     <SiteFooter />
     <LoginModal v-model="showLogin" />
   </div>
 </template>
+
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap');

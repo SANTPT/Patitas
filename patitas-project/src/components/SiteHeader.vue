@@ -1,5 +1,5 @@
 <template>
-  <header class="site-header">
+  <header class="site-header" :class="{ 'is-sticky': isSticky }">
     <div class="header-content container">
 
       <!-- Logo -->
@@ -55,6 +55,25 @@
         <li v-for="item in navItems" :key="item.label">
           <a :href="item.href" :class="{ active: item.active }" @click="menuOpen = false">{{ item.label }}</a>
         </li>
+        <!-- Sección de Autenticación Móvil -->
+        <li class="mobile-auth-item">
+          <template v-if="authStore.isAuthenticated">
+            <div class="mobile-user-row">
+              <span class="user-avatar">{{ authStore.initials }}</span>
+              <span class="user-name">{{ authStore.displayName }}</span>
+              <button class="mobile-logout-btn" @click="authStore.logout(); menuOpen = false" aria-label="Cerrar sesión">
+                <span class="material-symbols-outlined">logout</span>
+                Cerrar Sesión
+              </button>
+            </div>
+          </template>
+          <template v-else>
+            <button class="mobile-login-btn" @click="emit('open-login'); menuOpen = false">
+              <span class="material-symbols-outlined">login</span>
+              Iniciar sesión
+            </button>
+          </template>
+        </li>
       </ul>
     </nav>
 
@@ -68,12 +87,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
 
 const emit = defineEmits(['open-login']);
 const authStore = useAuthStore();
 const menuOpen = ref(false);
+const isSticky = ref(false);
 const navItems = ref([
   { label: 'inicio',   href: '#', active: true  },
   { label: 'recursos', href: '#', active: false },
@@ -81,6 +101,18 @@ const navItems = ref([
   { label: 'nosotros', href: '#', active: false },
   { label: 'contacto', href: '#', active: false },
 ]);
+
+const handleScroll = () => {
+  isSticky.value = window.scrollY > 80;
+};
+
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll);
+});
 </script>
 
 <style scoped>
@@ -89,16 +121,29 @@ const navItems = ref([
   background-image: url('../assets/fondo_morado.png');
   background-size: cover;
   background-position: center;
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 100;
+  transition: all 0.3s ease;
+}
+
+.site-header.is-sticky {
+  box-shadow: 0 0.22rem 1.11rem rgba(26, 91, 130, 0.15);
 }
 
 .header-content {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 1.11rem;
-  padding-top: 0.15rem;
-  padding-bottom: 0.15rem;
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+  transition: padding 0.3s ease;
+}
+
+.site-header.is-sticky .header-content {
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
 }
 
 /* ─── LOGO ─── */
@@ -111,19 +156,38 @@ const navItems = ref([
 
 .logo-wrap {
   position: relative;
+  width: 3.8rem;
+  height: 3.8rem;
+  transition: width 0.3s ease, height 0.3s ease;
 }
 
 .logo {
-  width: 6.3rem;
-  height: 6.3rem;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 5.5rem;
+  height: 5.5rem;
   border-radius: 50%;
   object-fit: cover;
-  border: 0.17rem solid rgba(255,255,255,0.9);
-  box-shadow: 0 0.22rem 0.89rem rgba(0,0,0,0.15);
-  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
+  border: 0.18rem solid rgba(255,255,255,1);
+  box-shadow: 0 0.33rem 1.11rem rgba(0,0,0,0.18);
+  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), width 0.3s ease, height 0.3s ease, border-width 0.3s ease;
   display: block;
+  z-index: 10;
 }
-.logo:hover { transform: scale(1.07) rotate(-4deg); }
+.logo:hover { transform: translate(-50%, -50%) scale(1.08) rotate(-4deg); }
+
+.site-header.is-sticky .logo-wrap {
+  width: 3.2rem;
+  height: 3.2rem;
+}
+
+.site-header.is-sticky .logo {
+  width: 4.3rem;
+  height: 4.3rem;
+  border-width: 0.14rem;
+}
 
 .brand-name {
   font-family: 'Fredoka', sans-serif;
@@ -313,24 +377,25 @@ const navItems = ref([
   overflow: hidden;
   max-height: 0;
   transition: max-height 0.35s ease;
-  background: rgba(255,255,255,0.92);
+  background: rgba(255,255,255,0.96);
   backdrop-filter: blur(0.67rem);
+  border-bottom: 1px solid rgba(26,91,130,0.08);
 }
 .mobile-nav.open {
-  max-height: 17.78rem;
+  max-height: 25rem;
 }
 .mobile-nav ul {
-  padding: 0.56rem 1.11rem 1.11rem;
+  padding: 0.89rem 1.11rem 1.33rem;
   display: flex;
   flex-direction: column;
-  gap: 0.22rem;
+  gap: 0.33rem;
 }
 .mobile-nav a {
   font-family: 'Fredoka', sans-serif;
   font-size: 1.1rem;
   font-weight: 500;
   color: var(--text-blue);
-  padding: 0.56rem 1rem;
+  padding: 0.67rem 1.11rem;
   border-radius: 0.67rem;
   display: block;
   transition: all 0.2s;
@@ -338,10 +403,84 @@ const navItems = ref([
 .mobile-nav a.active { background: var(--button-purple); color: white; }
 .mobile-nav a:hover:not(.active) { background: var(--button-purple-soft); }
 
+/* Autenticación en Nav Móvil */
+.mobile-auth-item {
+  border-top: 1px dashed rgba(26, 91, 130, 0.15);
+  margin-top: 0.67rem;
+  padding-top: 0.89rem;
+}
+
+.mobile-user-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.56rem;
+  padding: 0.56rem 0;
+}
+
+.mobile-user-row .user-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1rem;
+}
+
+.mobile-user-row .user-name {
+  font-size: 1.05rem;
+  max-width: 100%;
+}
+
+.mobile-logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.44rem;
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  background: rgba(229, 62, 62, 0.08);
+  color: #e53e3e;
+  border: 1px solid rgba(229, 62, 62, 0.15);
+  border-radius: 5.5rem;
+  padding: 0.56rem 1.11rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mobile-logout-btn:hover {
+  background: #e53e3e;
+  color: white;
+}
+
+.mobile-login-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.44rem;
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 600;
+  font-size: 1rem;
+  background: var(--button-purple);
+  color: white;
+  border: none;
+  border-radius: 5.5rem;
+  padding: 0.67rem 1.11rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-purple);
+}
+
+.mobile-login-btn:hover {
+  background: var(--button-purple-hover);
+  transform: translateY(-1px);
+}
+
 /* ─── WAVE ─── */
 .header-wave {
   height: 2.78rem;
   display: block;
+  transition: height 0.3s ease;
 }
 .header-wave svg {
   width: 100%;
@@ -349,16 +488,19 @@ const navItems = ref([
   display: block;
 }
 
+.site-header.is-sticky .header-wave {
+  height: 1.22rem;
+}
+
 /* ─── RESPONSIVE ─── */
 @media (max-width: 960px) {
   .main-nav { display: none; }
-  .login-btn { display: none; }
   .hamburger { display: flex; }
   .mobile-nav { display: block; }
-  .brand-name { font-size: 1.5rem; }
 }
-@media (max-width: 480px) {
-  .logo { width: 2.89rem; height: 2.89rem; }
-  .brand-name { display: none; }
+
+@media (max-width: 576px) {
+  .login-btn { display: none; }
+  .logo { width: 3.2rem; height: 3.2rem; }
 }
 </style>
