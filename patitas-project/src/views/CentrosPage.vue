@@ -2,11 +2,6 @@
   <div class="centros-page">
     <header class="page-header">
       <div class="header-content container">
-        <nav class="breadcrumbs" aria-label="Navegación secundaria">
-          <RouterLink to="/">Inicio</RouterLink>
-          <span class="separator">/</span>
-          <span class="current">Centros de Apoyo</span>
-        </nav>
         <h1 class="page-title">Centros de Atención Temprana</h1>
         <p class="page-subtitle">
           Encuentra centros de rehabilitación, integración sensorial y diagnóstico recomendados.
