@@ -141,6 +141,9 @@ export const useCartStore = defineStore('cart', () => {
     return order;
   }
 
+  // Expose saveOrders for in-place mutations (cancel order, etc.)
+  function saveOrdersPublic() { saveOrders(); }
+
   return {
     // state
     items, orders,
@@ -150,5 +153,6 @@ export const useCartStore = defineStore('cart', () => {
     allOrders, getOrder, getOrdersByUser, getProductsByUser,
     // actions
     addItem, removeItem, updateQuantity, clearCart, placeOrder,
+    saveOrdersPublic,
   };
 });
