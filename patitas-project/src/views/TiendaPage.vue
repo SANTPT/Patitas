@@ -4,7 +4,6 @@
     <!-- HERO -->
     <header class="page-header">
       <div class="header-content container">
-        <span class="header-tag">🛍️ Tienda Patitas</span>
         <h1 class="page-title">Juguetes y Recursos para cada patita</h1>
         <p class="page-subtitle">Material especializado recomendado por terapeutas para potenciar el desarrollo en casa.</p>
       </div>
@@ -249,41 +248,54 @@
               </div>
             </div>
 
-            <!-- Productos del pedido con acciones individuales -->
+            <!-- Productos del pedido con botón eliminar individual -->
             <div class="omodal-products-section">
-              <h4 class="omodal-section-title">Productos</h4>
+              <div class="omodal-section-header">
+                <h4 class="omodal-section-title">Productos ({{ modalOrder.items.length }})</h4>
+                <span v-if="modalOrder.status === 'cancelled'" class="omodal-cancelled-badge">
+                  <span class="material-symbols-outlined">block</span> Cancelado
+                </span>
+              </div>
               <div class="omodal-product-list">
-                <div v-for="item in modalOrder.items" :key="item.productId" class="omodal-product-item">
+                <div
+                  v-for="item in modalOrder.items"
+                  :key="item.productId"
+                  class="omodal-product-item"
+                  :class="{ 'item-cancelled': item.cancelled }"
+                >
                   <img :src="item.image" :alt="item.name" />
                   <div class="omodal-product-info">
                     <span>{{ item.name }}</span>
                     <small>×{{ item.quantity }} · {{ fmt(item.subtotal) }}</small>
+                    <span v-if="item.cancelled" class="item-cancelled-tag">Eliminado</span>
                   </div>
-                  <!-- Cancelar producto individual (solo si está en preparación) -->
+                  <!-- Eliminar producto — disponible en cualquier estado activo -->
                   <button
-                    v-if="modalOrder.status === 'preparing'"
+                    v-if="!item.cancelled && modalOrder.status !== 'delivered'"
                     class="omodal-cancel-item-btn"
                     @click.stop="confirmCancelItem(item)"
-                    :title="'Cancelar ' + item.name"
+                    :title="'Eliminar ' + item.name"
                   >
-                    <span class="material-symbols-outlined">close</span>
+                    <span class="material-symbols-outlined">delete</span>
                   </button>
                 </div>
               </div>
             </div>
 
-            <!-- Acciones del pedido completo -->
+            <!-- Acciones del pedido -->
             <div class="omodal-detail-actions">
-              <!-- Cancelar pedido completo (solo si está en preparación) -->
+
+              <!-- Eliminar pedido completo — siempre visible si no está entregado ni ya cancelado -->
               <button
-                v-if="modalOrder.status === 'preparing'"
+                v-if="modalOrder.status !== 'delivered' && modalOrder.status !== 'cancelled'"
                 class="omodal-cancel-order-btn"
                 @click="confirmCancelOrder"
               >
-                <span class="material-symbols-outlined">cancel</span>
-                Cancelar pedido completo
+                <span class="material-symbols-outlined">delete_forever</span>
+                Eliminar pedido completo
               </button>
 
+              <!-- Ver detalle siempre disponible -->
               <RouterLink
                 :to="{ name: 'pedido', params: { id: modalOrder.id } }"
                 class="omodal-full-btn"
@@ -293,8 +305,9 @@
                 Ver detalle completo
               </RouterLink>
 
+              <!-- Cambio / devolución — visible en todos los estados excepto cancelado -->
               <RouterLink
-                v-if="modalOrder.status !== 'preparing'"
+                v-if="modalOrder.status !== 'cancelled'"
                 :to="{ name: 'devoluciones', query: { order: modalOrder.id } }"
                 class="omodal-dev-btn"
                 @click="closeModal"
@@ -308,18 +321,18 @@
           <!-- VISTA: Confirmación de cancelación -->
           <div v-if="modalView === 'cancel-confirm'" class="omodal-cancel-confirm">
             <span class="material-symbols-outlined omodal-cancel-icon">warning</span>
-            <h4>{{ cancelTarget === 'order' ? '¿Cancelar el pedido completo?' : '¿Cancelar este producto?' }}</h4>
+            <h4>{{ cancelTarget === 'order' ? '¿Eliminar el pedido completo?' : '¿Eliminar este producto?' }}</h4>
             <p v-if="cancelTarget === 'order'">
-              Se cancelarán todos los productos del pedido <strong>{{ modalOrder?.id }}</strong> y recibirás el reembolso completo en 5–10 días laborales.
+              Se eliminará el pedido <strong>{{ modalOrder?.id }}</strong> y todos sus productos. Si ya fue cobrado, recibirás el reembolso en 5–10 días laborales.
             </p>
             <p v-else>
-              Se cancelará <strong>{{ cancelItem?.name }}</strong> del pedido {{ modalOrder?.id }}. El resto del pedido seguirá en curso.
+              Se eliminará <strong>{{ cancelItem?.name }}</strong> de tu pedido {{ modalOrder?.id }}. El resto de los productos seguirá su curso normal.
             </p>
             <div class="omodal-cancel-actions">
               <button class="omodal-cancel-back" @click="modalView = 'detail'">Volver</button>
               <button class="omodal-cancel-confirm-btn" @click="executeCancellation">
-                <span class="material-symbols-outlined">check</span>
-                Sí, cancelar
+                <span class="material-symbols-outlined">delete</span>
+                Sí, eliminar
               </button>
             </div>
           </div>
@@ -327,9 +340,15 @@
           <!-- VISTA: Cancelación completada -->
           <div v-if="modalView === 'cancel-done'" class="omodal-cancel-done">
             <span class="material-symbols-outlined omodal-done-icon">task_alt</span>
-            <h4>Cancelación registrada</h4>
-            <p>Procesaremos el reembolso en 5–10 días laborales. Recibirás confirmación por email.</p>
-            <button class="omodal-full-btn" @click="closeModal">Cerrar</button>
+            <h4>{{ cancelDoneTitle }}</h4>
+            <p>{{ cancelDoneMsg }}</p>
+            <div class="omodal-cancel-actions" style="justify-content:center">
+              <button class="omodal-full-btn" @click="modalOrder ? modalView = 'detail' : modalView = 'orders'">
+                <span class="material-symbols-outlined">{{ modalOrder ? "arrow_back" : "list" }}</span>
+                {{ modalOrder ? "Ver pedido" : "Mis pedidos" }}
+              </button>
+              <button class="omodal-cancel-back" @click="closeModal">Cerrar</button>
+            </div>
           </div>
 
         </div>
@@ -443,17 +462,40 @@ function confirmCancelItem(item) {
   modalView.value = 'cancel-confirm';
 }
 
+const cancelDoneTitle = ref('Eliminación registrada');
+const cancelDoneMsg   = ref('');
+
 function executeCancellation() {
   const ord = cartStore.orders.find(o => o.id === modalOrder.value.id);
   if (!ord) return;
+
   if (cancelTarget.value === 'order') {
-    ord.status = 'cancelled';
+    // Eliminar el pedido completo del array
+    const idx = cartStore.orders.indexOf(ord);
+    if (idx !== -1) cartStore.orders.splice(idx, 1);
+    cancelDoneTitle.value = 'Pedido eliminado';
+    cancelDoneMsg.value   = 'El pedido ' + modalOrder.value.id + ' ha sido eliminado. Si ya fue cobrado, recibirás el reembolso en 5–10 días laborales.';
+    modalOrder.value = null;
+
   } else if (cancelTarget.value === 'item' && cancelItem.value) {
+    // Eliminar solo ese producto del pedido
     ord.items = ord.items.filter(i => i.productId !== cancelItem.value.productId);
-    if (ord.items.length === 0) ord.status = 'cancelled';
-    else ord.total = +ord.items.reduce((a, i) => a + i.subtotal, 0).toFixed(2);
-    modalOrder.value = JSON.parse(JSON.stringify(ord));
+    if (ord.items.length === 0) {
+      // Si no quedan items, eliminar el pedido completo también
+      const idx = cartStore.orders.indexOf(ord);
+      if (idx !== -1) cartStore.orders.splice(idx, 1);
+      cancelDoneTitle.value = 'Pedido eliminado';
+      cancelDoneMsg.value   = 'Era el único producto. El pedido completo ha sido eliminado.';
+      modalOrder.value = null;
+    } else {
+      ord.total = +ord.items.reduce((a, i) => a + i.subtotal, 0).toFixed(2);
+      modalOrder.value = JSON.parse(JSON.stringify(ord));
+      cancelDoneTitle.value = 'Producto eliminado';
+      cancelDoneMsg.value   = cancelItem.value.name + ' ha sido eliminado del pedido. El resto sigue en curso.';
+    }
   }
+
+  // Persistir todos los pedidos restantes
   localStorage.setItem('patitas_orders', JSON.stringify(cartStore.orders));
   modalView.value = 'cancel-done';
 }
@@ -961,7 +1003,12 @@ onUnmounted(() => {
 .omodal-product-info { flex: 1; display: flex; flex-direction: column; gap: .05rem; }
 .omodal-product-info span { font-size: .88rem; font-weight: 600; }
 .omodal-product-info small { font-size: .75rem; opacity: .6; }
-.omodal-cancel-item-btn { background: none; border: 1.5px solid rgba(229,62,62,.25); border-radius: 50%; width: 1.6rem; height: 1.6rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #e53e3e; flex-shrink: 0; transition: all .2s; }
+.omodal-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .6rem; }
+.omodal-cancelled-badge { display: inline-flex; align-items: center; gap: .25rem; background: rgba(229,62,62,.1); color: #e53e3e; border: 1px solid rgba(229,62,62,.25); border-radius: 5rem; padding: .15rem .65rem; font-size: .72rem; font-weight: 700; }
+.omodal-cancelled-badge .material-symbols-outlined { font-size: .85rem; }
+.omodal-product-item.item-cancelled { opacity: .45; }
+.item-cancelled-tag { font-size: .7rem; color: #e53e3e; font-weight: 700; }
+.omodal-cancel-item-btn { background: none; border: 1.5px solid rgba(229,62,62,.3); border-radius: .5rem; width: 1.9rem; height: 1.9rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #e53e3e; flex-shrink: 0; transition: all .2s; }
 .omodal-cancel-item-btn:hover { background: rgba(229,62,62,.08); border-color: #e53e3e; }
 .omodal-cancel-item-btn .material-symbols-outlined { font-size: .9rem; }
 /* Acciones */

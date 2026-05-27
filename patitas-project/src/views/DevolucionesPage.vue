@@ -33,11 +33,21 @@
               <p>Selecciona el producto de tus compras anteriores.</p>
             </div>
 
-            <!-- Sin compras aún -->
+            <!-- Sin pedidos entregados -->
             <div v-if="userProducts.length === 0" class="empty-state">
-              <span class="material-symbols-outlined empty-icon">shopping_bag</span>
-              <h2>Aún no tienes compras</h2>
-              <p>Cuando realices una compra podrás gestionarla aquí.</p>
+              <span class="material-symbols-outlined empty-icon">local_shipping</span>
+              <h2>No tienes pedidos entregados</h2>
+              <p>Las devoluciones solo se pueden solicitar una vez que el pedido ha sido entregado.</p>
+
+              <!-- Mostrar pedidos pendientes si los hay -->
+              <div v-if="pendingUserProducts.length > 0" class="pending-orders-info">
+                <span class="material-symbols-outlined">info</span>
+                <div>
+                  <strong>Tienes {{ pendingUserProducts.length }} producto(s) en camino</strong>
+                  <span>Podrás solicitar cambios o devoluciones cuando sean entregados.</span>
+                </div>
+              </div>
+
               <RouterLink to="/tienda" class="btn-cta">Explorar tienda</RouterLink>
             </div>
 
@@ -158,14 +168,25 @@
               <Transition name="found-fade">
                 <div v-if="guestOrder" class="order-found-card">
                   <div class="found-top">
-                    <span class="found-badge">
-                      <span class="material-symbols-outlined">check_circle</span>
-                      Pedido encontrado
+                    <span class="found-badge" :class="{ 'badge-warning': guestOrder.status !== 'delivered' }">
+                      <span class="material-symbols-outlined">{{ guestOrder.status === 'delivered' ? 'check_circle' : 'schedule' }}</span>
+                      {{ guestOrder.status === 'delivered' ? 'Pedido encontrado' : 'Pedido ' + statusLabel(guestOrder.status) }}
                     </span>
                     <span class="found-id">{{ guestOrder.id }}</span>
                   </div>
-                  <p class="found-prompt">Selecciona el producto sobre el que necesitas ayuda:</p>
-                  <div class="found-products-picker">
+
+                  <!-- Pedido no entregado: mostrar aviso y bloquear la solicitud -->
+                  <div v-if="guestOrder.status !== 'delivered'" class="not-delivered-notice">
+                    <span class="material-symbols-outlined">info</span>
+                    <div>
+                      <strong>Este pedido aún no ha sido entregado</strong>
+                      <span>Las devoluciones solo se pueden solicitar una vez que el pedido llegue a tu domicilio. Estado actual: <strong>{{ statusLabel(guestOrder.status) }}</strong>.</span>
+                    </div>
+                  </div>
+
+                  <!-- Solo mostrar picker si está entregado -->
+                  <p v-if="guestOrder.status === 'delivered'" class="found-prompt">Selecciona el producto sobre el que necesitas ayuda:</p>
+                  <div v-if="guestOrder.status === 'delivered'" class="found-products-picker">
                     <button
                       v-for="item in guestOrder.items"
                       :key="item.productId"
@@ -183,7 +204,7 @@
                   </div>
                   <button
                     class="next-btn"
-                    :disabled="!guestSelectedProduct"
+                    :disabled="!guestSelectedProduct || guestOrder.status !== 'delivered'"
                     @click="step = 1"
                   >
                     Continuar
@@ -320,9 +341,19 @@ const authStore = useAuthStore();
 const step = ref(0);
 
 // ── Logueado: productos de su historial ───────────────────
-const userProducts     = computed(() =>
-  authStore.user?.id ? cartStore.getProductsByUser(authStore.user.id) : []
-);
+// Solo productos de pedidos ENTREGADOS — devolución solo aplica a pedidos recibidos
+const userProducts = computed(() => {
+  if (!authStore.user?.id) return [];
+  return cartStore.getProductsByUser(authStore.user.id)
+    .filter(p => p.orderStatus === 'delivered');
+});
+
+// Pedidos no entregados del usuario (para mostrar estado informativo)
+const pendingUserProducts = computed(() => {
+  if (!authStore.user?.id) return [];
+  return cartStore.getProductsByUser(authStore.user.id)
+    .filter(p => p.orderStatus !== 'delivered');
+});
 const selectedProduct  = ref(null);
 
 function pickProduct(prod) {
@@ -657,4 +688,36 @@ function statusIcon(s) {
 .info-strip-item strong { font-size: .88rem; font-weight: 700; }
 .info-strip-item span { font-size: .8rem; opacity: .65; }
 .info-strip-item a { color: #c58cf2; font-weight: 600; font-size: .88rem; }
+
+/* ── Pedidos en camino (aviso) ── */
+.pending-orders-info {
+  display: flex; align-items: flex-start; gap: .75rem;
+  background: rgba(59,130,246,.07); border: 1.5px solid rgba(59,130,246,.2);
+  border-radius: .85rem; padding: .85rem 1rem;
+  font-family: 'Outfit', sans-serif; color: #1d4ed8;
+  max-width: 24rem; text-align: left; margin-top: -.25rem;
+}
+.pending-orders-info .material-symbols-outlined { font-size: 1.2rem; flex-shrink: 0; margin-top: .1rem; }
+.pending-orders-info > div { display: flex; flex-direction: column; gap: .2rem; }
+.pending-orders-info strong { font-size: .88rem; font-weight: 700; }
+.pending-orders-info span { font-size: .82rem; opacity: .8; line-height: 1.5; }
+
+/* ── Aviso pedido no entregado (invitado) ── */
+.not-delivered-notice {
+  display: flex; align-items: flex-start; gap: .75rem;
+  background: rgba(245,158,11,.08); border: 1.5px solid rgba(245,158,11,.3);
+  border-radius: .85rem; padding: .9rem 1rem; margin: .5rem 0 .25rem;
+  color: #92400e;
+}
+.not-delivered-notice .material-symbols-outlined { font-size: 1.2rem; flex-shrink: 0; margin-top: .1rem; }
+.not-delivered-notice > div { display: flex; flex-direction: column; gap: .25rem; }
+.not-delivered-notice strong { font-size: .88rem; font-weight: 700; display: block; }
+.not-delivered-notice span { font-size: .82rem; line-height: 1.55; }
+
+/* ── Badge warning (pedido no entregado) ── */
+.found-badge.badge-warning {
+  background: rgba(245,158,11,.15); color: #92400e;
+  border-color: rgba(245,158,11,.35);
+}
+.found-badge.badge-warning .material-symbols-outlined { color: #d97706; }
 </style>
