@@ -2,12 +2,6 @@
   <div class="comunidad-page">
     <header class="page-header">
       <div class="header-content container">
-        <nav class="breadcrumbs" aria-label="Breadcrumb">
-          <router-link to="/">Inicio</router-link>
-          <span class="separator-icon">/</span>
-          <span class="current-item" aria-current="page">Comunidad Patitas</span>
-        </nav>
-        <span class="badge-tag">Comunidad</span>
         <h1 class="page-title">Comunidad Patitas: Un espacio para compartir y sanar</h1>
         <p class="page-subtitle">
           Conecta con otras familias en tu misma situación. Encuentra el apoyo, la comprensión y los recursos que solo quienes recorren este camino pueden ofrecer.
