@@ -147,8 +147,21 @@
                   </div>
                 </div>
 
-                <!-- Fila 3: Canal opcional de procedencia y Aceptación de términos -->
-                <div class="form-row items-center">
+                <!-- Fila 3: Datos de la familia (Hijo/a y procedencia) -->
+                <div class="form-row">
+                  <div class="field-group">
+                    <label for="reg-child-name">Nombre de tu hijo/a <span class="optional">(Opcional)</span></label>
+                    <div class="input-wrapper">
+                      <span class="material-symbols-outlined input-icon">child_care</span>
+                      <input
+                        id="reg-child-name"
+                        v-model="childName"
+                        type="text"
+                        placeholder="Ej. Mateo"
+                      />
+                    </div>
+                  </div>
+
                   <div class="field-group">
                     <label for="reg-referral">¿Cómo nos conociste? <span class="optional">(Opcional)</span></label>
                     <div class="input-wrapper">
@@ -162,7 +175,10 @@
                       </select>
                     </div>
                   </div>
+                </div>
 
+                <!-- Fila 4: Aceptación de términos -->
+                <div class="form-row terms-row">
                   <div class="terms-group">
                     <label class="checkbox-label">
                       <input type="checkbox" v-model="acceptTerms" required />
@@ -250,6 +266,7 @@ const name = ref('');
 const email = ref('');
 const password = ref('');
 const confirmPassword = ref('');
+const childName = ref('');
 const referral = ref('');
 const acceptTerms = ref(false);
 
@@ -339,7 +356,7 @@ async function handleRegister() {
 
   if (isFormInvalid.value) return;
 
-  const result = await authStore.register(name.value, email.value, password.value);
+  const result = await authStore.register(name.value, email.value, password.value, childName.value);
   if (result.success) {
     isSuccess.value = true;
     emit('register-success', authStore.user);
@@ -556,6 +573,11 @@ function switchToLogin() {
 
 .form-row.items-center {
   align-items: center;
+}
+
+.terms-row {
+  display: block;
+  margin-top: 0.5rem;
 }
 
 .field-group {

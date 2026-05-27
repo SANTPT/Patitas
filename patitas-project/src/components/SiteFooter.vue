@@ -28,8 +28,9 @@
         <div class="link-col" v-for="col in linkCols" :key="col.title">
           <h4 class="col-title">{{ col.title }}</h4>
           <ul>
-            <li v-for="l in col.links" :key="l">
-              <a href="#">{{ l }}</a>
+            <li v-for="link in col.links" :key="link.label">
+              <RouterLink v-if="link.href.startsWith('/')" :to="link.href">{{ link.label }}</RouterLink>
+              <a v-else :href="link.href">{{ link.label }}</a>
             </li>
           </ul>
         </div>
@@ -98,11 +99,22 @@ const socials = ref([
 const linkCols = ref([
   {
     title: 'Recursos',
-    links: ['Qué es el autismo', 'Atención temprana', 'Blog', 'Centros de apoyo'],
+    links: [
+      { label: 'Qué es el autismo', href: '#' },
+      { label: 'Atención temprana', href: '#' },
+      { label: 'Blog', href: '/blog' },
+      { label: 'Centros de apoyo', href: '/centros' }
+    ],
   },
   {
     title: 'Ayuda',
-    links: ['Envíos', 'Cambios y devoluciones', 'FAQ', 'Contacto'],
+    links: [
+      { label: 'Consultar pedido', href: '/pedido' },
+      { label: 'Envíos', href: '/pedido' },
+      { label: 'Cambios y devoluciones', href: '/devoluciones' },
+      { label: 'FAQ', href: '/faq' },
+      { label: 'Contacto', href: '/contacto' }
+    ],
   },
 ]);
 </script>

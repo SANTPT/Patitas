@@ -32,7 +32,7 @@ async function handleSubmit() {
     return;
   }
 
-  isSubmitting.value = ref(true);
+  isSubmitting.value = true;
   errorMessage.value = '';
 
   try {

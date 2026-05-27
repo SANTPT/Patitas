@@ -33,6 +33,11 @@
             <h3 id="login-title" class="form-title">Ingresar</h3>
             <p class="form-sub">Nos alegra verte de nuevo.</p>
 
+            <div v-if="route.query.message" class="info-banner">
+              <span class="material-symbols-outlined">info</span>
+              <span>{{ route.query.message }}</span>
+            </div>
+
             <form @submit.prevent="handleLogin" class="login-form">
               <!-- Campo email -->
               <div class="field-group">
@@ -132,13 +137,20 @@
 
 <script setup>
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import videoUrl from '../assets/vido_patitas.mp4';
 import heroImg from '../assets/hero.png';
 
 const authStore = useAuthStore();
 const router = useRouter();
+const route = useRoute();
+
+function checkRedirect() {
+  if (route.query.redirect) {
+    router.push(route.query.redirect);
+  }
+}
 
 const props = defineProps({
   modelValue: {
@@ -177,6 +189,7 @@ async function handleLogin() {
     // Limpiar campos al cerrar
     email.value = '';
     password.value = '';
+    checkRedirect();
   } else {
     localError.value = result.error || 'Email o contraseña incorrectos.';
     // Limpiar solo la contraseña (buena práctica de seguridad)
@@ -190,6 +203,7 @@ async function loginGoogle() {
   if (result.success) {
     emit('login-success', authStore.user);
     emit('update:modelValue', false);
+    checkRedirect();
   } else {
     localError.value = authStore.error || 'Error al iniciar sesión con Google';
   }
@@ -201,6 +215,7 @@ async function loginFacebook() {
   if (result.success) {
     emit('login-success', authStore.user);
     emit('update:modelValue', false);
+    checkRedirect();
   } else {
     localError.value = authStore.error || 'Error al iniciar sesión con Facebook';
   }
@@ -212,6 +227,7 @@ async function loginApple() {
   if (result.success) {
     emit('login-success', authStore.user);
     emit('update:modelValue', false);
+    checkRedirect();
   } else {
     localError.value = authStore.error || 'Error al iniciar sesión con iCloud';
   }
@@ -540,6 +556,31 @@ function closeAndGoToRegister() {
   border: 1px solid #fed7d7;
   border-radius: 0.5rem;
   padding: 0.4rem 0.75rem;
+}
+
+/* ── Mensaje de información (banner) ── */
+.info-banner {
+  font-size: 0.82rem;
+  color: var(--text-blue);
+  text-align: center;
+  background: var(--button-purple-soft);
+  border: 1px solid var(--button-purple);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  line-height: 1.3;
+}
+.info-banner span {
+  font-family: inherit;
+}
+.info-banner .material-symbols-outlined {
+  font-size: 1.1rem;
+  color: var(--button-purple);
+  flex-shrink: 0;
 }
 
 /* ── Divider ── */

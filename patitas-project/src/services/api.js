@@ -13,6 +13,78 @@ const api = axios.create({
   },
 });
 
+// Generar Avatar SVG estético de forma dinámica a partir de las iniciales de un nombre
+function generateAvatarSvg(name) {
+  const colors = [
+    '#c58cf2', // Morado patitas
+    '#5bbfd6', // Azul patitas
+    '#f6ad55', // Naranja
+    '#fc8181', // Rosa
+    '#4fd1c5', // Cerceta
+    '#68d391', // Verde
+    '#63b3ed'  // Celeste
+  ];
+  
+  const parts = (name || 'P').trim().split(/\s+/);
+  const initials = parts.length > 1 
+    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    : parts[0].substring(0, Math.min(2, parts[0].length)).toUpperCase();
+    
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const colorIndex = Math.abs(hash) % colors.length;
+  const color = colors[colorIndex];
+  
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <circle cx='50' cy='50' r='50' fill='${color.replace('#', '%23')}'/>
+    <text x='50%' y='55%' font-family='sans-serif' font-size='40' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='middle'>${initials}</text>
+  </svg>`;
+  
+  return `data:image/svg+xml;utf8,${svg}`;
+}
+
+// Funciones auxiliares para persistir usuarios simulados en localStorage
+function getMockUsers() {
+  const defaultUsers = [
+    {
+      id: 1,
+      name: 'Padre Demo',
+      email: 'demo@example.com',
+      password: 'password',
+      role: 'user',
+      avatar: generateAvatarSvg('Padre Demo'),
+      createdAt: '2026-05-26T08:00:00Z',
+      savedResources: [1, 3],
+    }
+  ];
+  try {
+    const saved = localStorage.getItem('patitas_mock_users');
+    return saved ? JSON.parse(saved) : defaultUsers;
+  } catch (_) {
+    return defaultUsers;
+  }
+}
+
+function saveMockUsers(users) {
+  try {
+    localStorage.setItem('patitas_mock_users', JSON.stringify(users));
+  } catch (_) {}
+}
+
+function getRequestData(config) {
+  if (!config || !config.data) return {};
+  if (typeof config.data === 'string') {
+    try {
+      return JSON.parse(config.data);
+    } catch (_) {
+      return {};
+    }
+  }
+  return config.data;
+}
+
 // 1. Interceptor de Request: Añadir cabecera Authorization (Bearer Token)
 api.interceptors.request.use(
   (config) => {
@@ -58,7 +130,7 @@ const avatarSofia = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/
 const avatarGeneric = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%23cbd5e0'/><text x='50%' y='55%' font-family='sans-serif' font-size='40' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='middle'>P</text></svg>";
 
 // Base de datos simulada en memoria para posts de Comunidad (Foro)
-let mockPosts = [
+const defaultPosts = [
   {
     id: 1,
     title: "Rutinas visuales en casa: ¿Qué les funciona mejor?",
@@ -138,10 +210,421 @@ let mockPosts = [
   }
 ];
 
+function getMockPosts() {
+  try {
+    const saved = localStorage.getItem('patitas_mock_posts');
+    let posts = saved ? JSON.parse(saved) : defaultPosts;
+    
+    // Eliminar de forma automática cualquier comentario del usuario de prueba "tu"
+    let hasChanged = false;
+    posts.forEach(post => {
+      if (post.comments) {
+        const originalLength = post.comments.length;
+        post.comments = post.comments.filter(c => c.author && c.author.name !== 'tu');
+        if (post.comments.length !== originalLength) {
+          hasChanged = true;
+        }
+      }
+    });
+
+    if (hasChanged) {
+      try {
+        localStorage.setItem('patitas_mock_posts', JSON.stringify(posts));
+      } catch (_) {}
+    }
+    
+    return posts;
+  } catch (_) {
+    return defaultPosts;
+  }
+}
+
+function saveMockPosts(posts) {
+  try {
+    localStorage.setItem('patitas_mock_posts', JSON.stringify(posts));
+  } catch (_) {}
+}
+
+const defaultCenters = [
+  {
+    id: 1,
+    name: "Centro de Desarrollo Infantil y Atención Temprana (CDIAT) Patitas",
+    address: "Calle de Serrano, 142, 28006 Madrid",
+    lat: 40.435,
+    lng: -3.688,
+    phone: "+34 915 678 901",
+    website: "https://www.patitasatenciontemprana.es",
+    therapies: ["Terapia Ocupacional", "Integración Sensorial", "Psicología", "Logopedia"],
+    rating: 4.9,
+    description: "Especialistas en estimulación precoz e integración sensorial en un entorno lúdico y adaptado."
+  },
+  {
+    id: 2,
+    name: "Gabinete de Logopedia y Neurodesarrollo Madrid",
+    address: "Calle de Alberto Aguilera, 23, 28015 Madrid",
+    lat: 40.430,
+    lng: -3.712,
+    phone: "+34 914 567 890",
+    therapies: ["Logopedia", "Psicomotricidad", "Fisioterapia"],
+    rating: 4.7,
+    description: "Programas personalizados de comunicación verbal y no verbal para la primera infancia."
+  },
+  {
+    id: 3,
+    name: "Clínica Psicopedagógica Avanza",
+    address: "Paseo de la Castellana, 85, 28046 Madrid",
+    lat: 40.448,
+    lng: -3.692,
+    phone: "+34 913 222 111",
+    therapies: ["Apoyo Pedagógico", "Psicología Infantil", "Terapia de Juego"],
+    rating: 4.8,
+    description: "Evaluaciones diagnósticas y soporte continuo para niños con sospechas de neurodiversidad."
+  },
+  {
+    id: 4,
+    name: "Asociación Española de Atención Temprana Inclusiva",
+    address: "Calle de Atocha, 64, 28012 Madrid",
+    lat: 40.412,
+    lng: -3.699,
+    phone: "+34 912 999 888",
+    therapies: ["Terapia Familiar", "Grupos de Apoyo", "Fisioterapia"],
+    rating: 4.6,
+    description: "Talleres familiares gratuitos, asesoría legal escolar y grupos de encuentro entre padres."
+  },
+  {
+    id: 5,
+    name: "CDIAT Arcoiris Tetuán",
+    address: "Calle de Bravo Murillo, 244, 28020 Madrid",
+    lat: 40.457,
+    lng: -3.704,
+    phone: "+34 916 444 333",
+    therapies: ["Psicomotricidad", "Integración Sensorial", "Terapia Ocupacional"],
+    rating: 4.8,
+    description: "Acompañamiento especializado en el desarrollo psicomotor y sensorial de niños de 0 a 6 años."
+  },
+  {
+    id: 6,
+    name: "Centro de Atención Temprana Bizirik",
+    address: "Alameda de Mazarredo, 15, 48009 Bilbao",
+    lat: 43.268,
+    lng: -2.934,
+    phone: "+34 944 123 456",
+    website: "https://www.bizirik.eus",
+    therapies: ["Fisioterapia", "Psicomotricidad", "Logopedia", "Integración Sensorial"],
+    rating: 4.9,
+    description: "Centro especializado en atención temprana, logopedia, fisioterapia y terapia ocupacional para potenciar la autonomía infantil."
+  },
+  {
+    id: 7,
+    name: "Gabinete de Apoyo Infantil Gure Txokoa",
+    address: "Gran Vía de Don Diego López de Haro, 45, 48011 Bilbao",
+    lat: 43.263,
+    lng: -2.935,
+    phone: "+34 944 654 321",
+    website: "https://www.guretxokoainfantil.org",
+    therapies: ["Psicología Infantil", "Terapia de Juego", "Logopedia"],
+    rating: 4.8,
+    description: "Acompañamiento psicopedagógico integral centrado en la familia y el desarrollo socioemocional."
+  },
+  {
+    id: 8,
+    name: "CDIAT Alai Bilbao",
+    address: "Calle Licenciado Poza, 12, 48008 Bilbao",
+    lat: 43.261,
+    lng: -2.939,
+    phone: "+34 944 777 888",
+    website: "https://www.alaibilbao.com",
+    therapies: ["Terapia Ocupacional", "Integración Sensorial"],
+    rating: 4.7,
+    description: "Espacio adaptado con salas de integración sensorial de última generación para niños con dificultades del desarrollo."
+  },
+  {
+    id: 9,
+    name: "Asociación Inclusiva Bizkaia",
+    address: "Calle Autonomía, 26, 48012 Bilbao",
+    lat: 43.257,
+    lng: -2.941,
+    phone: "+34 944 999 000",
+    therapies: ["Terapia Familiar", "Apoyo Escolar", "Grupos de Encuentro"],
+    rating: 4.6,
+    description: "Talleres familiares, escuela de padres y actividades de ocio inclusivo de fin de semana en Vizcaya."
+  },
+  {
+    id: 10,
+    name: "Centro de Terapia Sensorial Infantil Delicias",
+    address: "Paseo de las Delicias, 32, 28045 Madrid",
+    lat: 40.402,
+    lng: -3.693,
+    phone: "+34 911 234 567",
+    therapies: ["Integración Sensorial", "Terapia Ocupacional", "Fisioterapia"],
+    rating: 4.8,
+    description: "Sala de integración sensorial totalmente equipada y profesionales dedicados al desarrollo psicomotor."
+  },
+  {
+    id: 11,
+    name: "Gabinete de Logopedia y Aprendizaje Retiro",
+    address: "Calle de Ibiza, 14, 28009 Madrid",
+    lat: 40.418,
+    lng: -3.678,
+    phone: "+34 911 345 678",
+    therapies: ["Logopedia", "Apoyo Pedagógico", "Psicología"],
+    rating: 4.9,
+    description: "Especializados en trastornos del lenguaje, lectura, escritura y logopedia de atención temprana."
+  },
+  {
+    id: 12,
+    name: "Centro de Neurodesarrollo Infantil Chamberí",
+    address: "Calle de Santa Engracia, 54, 28010 Madrid",
+    lat: 40.437,
+    lng: -3.702,
+    phone: "+34 911 456 789",
+    therapies: ["Estimulación Cognitiva", "Neuropsicología", "Psicomotricidad"],
+    rating: 4.7,
+    description: "Evaluación y tratamiento del neurodesarrollo infantil desde enfoques neuropsicológicos."
+  },
+  {
+    id: 13,
+    name: "CDIAT Las Rozas",
+    address: "Calle Real, 18, 28231 Las Rozas, Madrid",
+    lat: 40.545,
+    lng: -3.875,
+    phone: "+34 911 567 890",
+    therapies: ["Psicomotricidad", "Logopedia", "Terapia Familiar"],
+    rating: 4.6,
+    description: "Centro concertado de atención temprana en la zona noroeste de Madrid para niños de 0 a 6 años."
+  },
+  {
+    id: 14,
+    name: "Gabinete de Atención Temprana Alcalá",
+    address: "Calle Mayor, 78, 28801 Alcalá de Henares, Madrid",
+    lat: 40.482,
+    lng: -3.364,
+    phone: "+34 911 678 901",
+    therapies: ["Logopedia", "Fisioterapia", "Psicología Infantil"],
+    rating: 4.8,
+    description: "Intervención de estimulación temprana integral para familias de Alcalá de Henares y alrededores."
+  },
+  {
+    id: 15,
+    name: "Gabinete de Neurodesarrollo Infantil Barcelona",
+    address: "Passeig de Gràcia, 92, 08008 Barcelona",
+    lat: 41.395,
+    lng: 2.162,
+    phone: "+34 933 123 456",
+    website: "https://www.neurobarcelona.cat",
+    therapies: ["Neuropsicología", "Logopedia", "Terapia Ocupacional"],
+    rating: 4.9,
+    description: "Centro de referencia en Barcelona especializado en diagnóstico e intervención en autismo y TDAH."
+  },
+  {
+    id: 16,
+    name: "CDIAT Eixample",
+    address: "Carrer d'Aragó, 285, 08009 Barcelona",
+    lat: 41.392,
+    lng: 2.167,
+    phone: "+34 933 234 567",
+    therapies: ["Integración Sensorial", "Psicología Infantil", "Psicomotricidad"],
+    rating: 4.8,
+    description: "Estimulación temprana integral con salas equipadas para psicomotricidad relacional."
+  },
+  {
+    id: 17,
+    name: "Centro de Estimulación Temprana Sarrià",
+    address: "Carrer de Major de Sarrià, 42, 08017 Barcelona",
+    lat: 41.401,
+    lng: 2.122,
+    phone: "+34 933 345 678",
+    therapies: ["Estimulación Temprana", "Terapia Familiar", "Logopedia"],
+    rating: 4.7,
+    description: "Atención individualizada centrada en el modelo de competencias familiares y el desarrollo del bebé."
+  },
+  {
+    id: 18,
+    name: "Gabinete Psicopedagógico Valencia Centro",
+    address: "Carrer de Colón, 15, 46004 Valencia",
+    lat: 39.468,
+    lng: -0.373,
+    phone: "+34 963 123 456",
+    therapies: ["Apoyo Pedagógico", "Psicología Infantil", "Terapia de Juego"],
+    rating: 4.8,
+    description: "Orientación educativa infantil, estimulación del lenguaje y terapia de conducta adaptada."
+  },
+  {
+    id: 19,
+    name: "CDIAT Ruzafa",
+    address: "Carrer de Sueca, 32, 46006 Valencia",
+    lat: 39.461,
+    lng: -0.377,
+    phone: "+34 963 234 567",
+    therapies: ["Fisioterapia", "Psicomotricidad", "Logopedia"],
+    rating: 4.7,
+    description: "Servicio de estimulación precoz y fisioterapia respiratoria y motriz infantil en Valencia."
+  },
+  {
+    id: 20,
+    name: "Centro de Atención Infantil Giralda",
+    address: "Calle Sierpes, 45, 41004 Sevilla",
+    lat: 37.390,
+    lng: -5.994,
+    phone: "+34 954 123 456",
+    website: "https://www.atencioninfantilgiralda.es",
+    therapies: ["Psicología Infantil", "Terapia Familiar", "Terapia Ocupacional"],
+    rating: 4.9,
+    description: "Apoyo interdisciplinario en atención temprana y neurodesarrollo en el centro de Sevilla."
+  },
+  {
+    id: 21,
+    name: "CDIAT Triana",
+    address: "Calle San Jacinto, 12, 41010 Sevilla",
+    lat: 37.384,
+    lng: -6.007,
+    phone: "+34 954 234 567",
+    therapies: ["Psicomotricidad", "Logopedia", "Integración Sensorial"],
+    rating: 4.8,
+    description: "Salas de psicomotricidad y logopedia clínica para el desarrollo del lenguaje en la infancia."
+  },
+  {
+    id: 22,
+    name: "CDIAT Gipuzkoa Donostia",
+    address: "Calle de Urbieta, 18, 20006 Donostia-San Sebastián",
+    lat: 43.317,
+    lng: -1.981,
+    phone: "+34 943 111 222",
+    website: "https://www.cdiatdonostia.eus",
+    therapies: ["Logopedia", "Terapia Ocupacional", "Psicomotricidad"],
+    rating: 4.8,
+    description: "Atención integral del desarrollo infantil en Donostia."
+  },
+  {
+    id: 23,
+    name: "Gabinete de Neurodesarrollo Ondarreta",
+    address: "Paseo de Ondarreta, 10, 20008 Donostia-San Sebastián",
+    lat: 43.313,
+    lng: -2.004,
+    phone: "+34 943 222 333",
+    website: "https://www.ondarretaneuro.eus",
+    therapies: ["Psicología Infantil", "Terapia Familiar", "Integración Sensorial"],
+    rating: 4.9,
+    description: "Especialistas en dificultades del aprendizaje e integración sensorial frente a la playa de Ondarreta."
+  },
+  {
+    id: 24,
+    name: "Centro de Atención Temprana Araba",
+    address: "Calle de Francia, 24, 01002 Vitoria-Gasteiz",
+    lat: 42.850,
+    lng: -2.668,
+    phone: "+34 945 333 444",
+    website: "https://www.atenciontempranaraba.eus",
+    therapies: ["Fisioterapia", "Psicomotricidad", "Logopedia"],
+    rating: 4.7,
+    description: "Servicio concertado de estimulación precoz para niños de Álava."
+  },
+  {
+    id: 25,
+    name: "Gabinete Psicopedagógico Zabalgana",
+    address: "Avenida de la Ilustración, 12, 01015 Vitoria-Gasteiz",
+    lat: 42.842,
+    lng: -2.698,
+    phone: "+34 945 444 555",
+    website: "https://www.zabalganapsico.eus",
+    therapies: ["Terapia Ocupacional", "Apoyo Pedagógico", "Terapia de Juego"],
+    rating: 4.8,
+    description: "Acompañamiento en el desarrollo infantil y orientación familiar en Zabalgana."
+  },
+  {
+    id: 26,
+    name: "CDIAT Barakaldo - Bizkaia",
+    address: "Calle de los Fueros, 8, 48901 Barakaldo",
+    lat: 43.297,
+    lng: -2.986,
+    phone: "+34 944 555 666",
+    website: "https://www.barakaldocdiat.eus",
+    therapies: ["Logopedia", "Integración Sensorial", "Terapia Ocupacional"],
+    rating: 4.7,
+    description: "Centro de estimulación infantil y logopedia en el centro de Barakaldo."
+  },
+  {
+    id: 27,
+    name: "Gabinete Infantil Getxo Las Arenas",
+    address: "Calle Mayor, 15, 48930 Getxo",
+    lat: 43.326,
+    lng: -3.013,
+    phone: "+34 944 666 777",
+    website: "https://www.infantilgetxo.eus",
+    therapies: ["Psicología Infantil", "Psicomotricidad", "Terapia Familiar"],
+    rating: 4.9,
+    description: "Especialistas en neurodesarrollo infantil y terapia familiar en Las Arenas."
+  },
+  {
+    id: 28,
+    name: "Centro de Terapia Temprana Bidasoa",
+    address: "Paseo de Colón, 22, 20302 Irun",
+    lat: 43.339,
+    lng: -1.789,
+    phone: "+34 943 777 888",
+    website: "https://www.terapiabidasoa.eus",
+    therapies: ["Fisioterapia", "Logopedia", "Integración Sensorial"],
+    rating: 4.8,
+    description: "Estimulación y rehabilitación infantil en la comarca del Bidasoa."
+  },
+  {
+    id: 29,
+    name: "CDIAT Durango",
+    address: "Calle Askatasun Etorbidea, 4, 48200 Durango",
+    lat: 43.168,
+    lng: -2.631,
+    phone: "+34 946 888 999",
+    website: "https://www.durangocdiat.eus",
+    therapies: ["Psicomotricidad", "Logopedia", "Terapia Ocupacional"],
+    rating: 4.7,
+    description: "Atención psicomotriz y del lenguaje en el Duranguesado."
+  }
+];
+
+function getMockCenters() {
+  try {
+    const saved = localStorage.getItem('patitas_mock_centers');
+    let centers = saved ? JSON.parse(saved) : defaultCenters;
+    
+    // Asegurar que Bizirik esté presente en la base de datos, que tenga los 29 centros y contenga la propiedad website
+    if (centers.length < 29 || !centers.some(c => c.name && c.name.includes('Bizirik')) || !centers.some(c => c.website)) {
+      centers = defaultCenters;
+      localStorage.setItem('patitas_mock_centers', JSON.stringify(centers));
+    }
+    
+    return centers;
+  } catch (_) {
+    return defaultCenters;
+  }
+}
+
+function saveMockCenters(centers) {
+  try {
+    localStorage.setItem('patitas_mock_centers', JSON.stringify(centers));
+  } catch (_) {}
+}
+
+let mockPosts = getMockPosts();
+
 if (isMockEnabled) {
   api.interceptors.request.use(
     async (config) => {
       const url = config.url || '';
+
+      // Interceptamos centros de atención temprana
+      if (url.includes('/centros') && !url.includes('/posts')) {
+        const centers = getMockCenters();
+        throw {
+          __isMockResponse: true,
+          response: {
+            status: 200,
+            data: centers,
+            statusText: 'OK',
+            headers: {},
+            config
+          }
+        };
+      }
 
       // Interceptamos recursos
       if (url.includes('/recursos')) {
@@ -486,6 +969,142 @@ if (isMockEnabled) {
         };
       }
 
+      // Interceptamos artículos del blog
+      if (url.includes('/blog')) {
+        const mockBlogArticles = [
+          {
+            id: 101,
+            title: "El papel del juego en el neurodesarrollo infantil",
+            slug: "juego-neurodesarrollo",
+            category: "desarrollo",
+            categoryLabel: "Desarrollo",
+            description: "Descubre cómo el juego estructurado y libre fortalece las conexiones neuronales y la motricidad en la infancia temprana.",
+            image: placeholderResourceImage,
+            author: "Dra. Elena Ruiz",
+            date: "2026-05-24T10:00:00Z",
+            content: `
+              <p>El juego no es simplemente una forma de pasar el tiempo para los niños; es el trabajo de la infancia. A través del juego, los niños exploran el mundo, entienden relaciones de causa y efecto y construyen habilidades cognitivas y motoras cruciales.</p>
+              <h3>La neurobiología del juego</h3>
+              <p>Diversos estudios demuestran que durante las actividades lúdicas, el cerebro del niño libera factores neurotróficos como el BDNF, que facilitan la plasticidad sináptica. Esto significa que jugar ayuda activamente a construir las autopistas de información en el cerebro en desarrollo.</p>
+              <blockquote>"Un niño que juega aprende a resolver problemas complejos de forma natural, interactuando con su entorno."</blockquote>
+              <h3>Tipos de juego recomendados</h3>
+              <ul>
+                <li><strong>Juego sensorio-motor:</strong> Estimula el cerebelo y la coordinación vestibular.</li>
+                <li><strong>Juego simbólico:</strong> Fundamental para el desarrollo cognitivo y el lenguaje, ya que requiere representar realidades ausentes.</li>
+                <li><strong>Juego estructurado con reglas:</strong> Fomenta las funciones ejecutivas, como el control inhibitorio y la memoria de trabajo.</li>
+              </ul>
+            `
+          },
+          {
+            id: 102,
+            title: "Estrategias de comunicación para niños con TEA",
+            slug: "estrategias-comunicacion-tea",
+            category: "tea",
+            categoryLabel: "TEA",
+            description: "Pautas prácticas y sistemas de comunicación aumentativa y alternativa (SAAC) para apoyar el habla y la reciprocidad social.",
+            image: placeholderResourceImage,
+            author: "Log. Marcos Sanz",
+            date: "2026-05-18T09:00:00Z",
+            content: `
+              <p>Para muchos niños dentro del espectro autista, la comunicación verbal tradicional puede suponer un gran desafío. Sin embargo, la comunicación va mucho más allá de las palabras habladas.</p>
+              <h3>Sistemas Aumentativos y Alternativos de Comunicación (SAAC)</h3>
+              <p>El uso de agendas visuales, pictogramas y dispositivos electrónicos con salida de voz es esencial para empoderar a los niños no verbales y reducir la frustración que nace de no poder expresar sus necesidades.</p>
+              <h3>Consejos prácticos para el día a día</h3>
+              <ul>
+                <li><strong>Usa un lenguaje claro y conciso:</strong> Evita frases hechas, dobles sentidos o metáforas complejas.</li>
+                <li><strong>Apóyate en lo visual:</strong> Si dices "es hora de vestirse", señala la ropa o muestra un pictograma alusivo.</li>
+                <li><strong>Espera pacientemente:</strong> Dales tiempo adicional para procesar la información y formular su respuesta.</li>
+              </ul>
+            `
+          },
+          {
+            id: 103,
+            title: "Gestión emocional en la crianza de niños atípicos",
+            slug: "gestion-emocional-crianza",
+            category: "crianza",
+            categoryLabel: "Crianza",
+            description: "Herramientas de autorregulación y autocuidado para padres y cuidadores que afrontan retos en el desarrollo infantil.",
+            image: placeholderResourceImage,
+            author: "Psic. Laura Gómez",
+            date: "2026-05-10T08:30:00Z",
+            content: `
+              <p>La crianza de un niño con desafíos en el desarrollo o neurodivergencia es un camino lleno de amor y satisfacciones, pero también de demandas emocionales intensas.</p>
+              <h3>La importancia de la autorregulación del cuidador</h3>
+              <p>Un principio fundamental en psicología es que un adulto estresado difícilmente podrá calmar a un niño desregulado. El autocuidado no es un lujo, es una necesidad clínica para sostener una crianza consciente y respetuosa.</p>
+              <blockquote>"Cuidar de ti mismo es la mejor manera de asegurar que tienes los recursos emocionales para cuidar de tu hijo."</blockquote>
+              <h3>Estrategias cotidianas de regulación</h3>
+              <p>Establecer pequeñas rutinas de desconexión, apoyarse en redes comunitarias y practicar la autocompasión frente a los momentos difíciles son prácticas esenciales para prevenir el burnout parental.</p>
+            `
+          },
+          {
+            id: 104,
+            title: "Guía de integración sensorial en casa",
+            slug: "integracion-sensorial-casa",
+            category: "sensorial",
+            categoryLabel: "Sensorial",
+            description: "Cómo crear una dieta sensorial adaptada para niños con hipersensibilidad o hiposensibilidad en el hogar.",
+            image: placeholderResourceImage,
+            author: "TO. Sofía Vega",
+            date: "2026-04-28T11:15:00Z",
+            content: `
+              <p>El procesamiento sensorial es la capacidad del cerebro para organizar y responder a la información que captamos a través de nuestros sentidos. Los niños con dificultades de procesamiento sensorial pueden reaccionar de forma exagerada (hipersensibilidad) o escasa (hiposensibilidad) a los estímulos.</p>
+              <h3>¿Qué es una dieta sensorial?</h3>
+              <p>Es un plan de actividades físicas personalizadas y diseñadas para proporcionar los estímulos táctiles, vestibulares y propioceptivos que el niño necesita para mantenerse enfocado, organizado y calmado durante el día.</p>
+              <h3>Actividades recomendadas para el hogar</h3>
+              <ul>
+                <li><strong>Para la propiocepción (presión profunda):</strong> Saltar en trampolín, jugar a "hacer un sándwich" presionando suavemente con cojines, arrastrar cajas pesadas.</li>
+                <li><strong>Para el sistema vestibular (movimiento):</strong> Columpiarse, rodar sobre una pelota terapéutica, balancearse.</li>
+                <li><strong>Para el sistema táctil:</strong> Cajas de exploración sensorial con legumbres, arroz o espuma de afeitar.</li>
+              </ul>
+            `
+          }
+        ];
+
+        // Verificar si se busca un artículo por slug
+        const match = url.match(/\/blog\/([a-zA-Z0-9\-]+)/);
+        if (match) {
+          const articleSlug = match[1];
+          const found = mockBlogArticles.find(a => a.slug === articleSlug);
+          if (found) {
+            throw {
+              __isMockResponse: true,
+              response: {
+                status: 200,
+                data: found,
+                statusText: 'OK',
+                headers: {},
+                config
+              }
+            };
+          } else {
+            throw {
+              __isMockResponse: true,
+              response: {
+                status: 404,
+                data: { message: "Artículo no encontrado" },
+                statusText: "Not Found",
+                headers: {},
+                config
+              }
+            };
+          }
+        }
+
+        // De lo contrario, retornar toda la lista ordenada por fecha desc
+        const sortedArticles = [...mockBlogArticles].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        throw {
+          __isMockResponse: true,
+          response: {
+            status: 200,
+            data: sortedArticles,
+            statusText: 'OK',
+            headers: {},
+            config,
+          },
+        };
+      }
+
       // Interceptamos posts de la comunidad
       if (url.includes('/posts')) {
         
@@ -505,6 +1124,7 @@ if (isMockEnabled) {
               post.likedBy.push(userToken);
               post.likes += 1;
             }
+            saveMockPosts(mockPosts);
             throw {
               __isMockResponse: true,
               response: {
@@ -529,17 +1149,20 @@ if (isMockEnabled) {
           const postId = parseInt(matchComment[1]);
           const post = mockPosts.find(p => p.id === postId);
           if (post) {
-            const { content } = JSON.parse(config.data || '{}');
+            const { content } = getRequestData(config);
             let savedUser = null;
             try {
               savedUser = JSON.parse(localStorage.getItem('patitas_user') || 'null');
+              if (savedUser && !savedUser.avatar) {
+                savedUser.avatar = generateAvatarSvg(savedUser.name);
+              }
             } catch (_) {}
 
             const newComment = {
               id: post.comments.length + 1,
               author: savedUser || {
                 name: 'Padre Demo',
-                avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+                avatar: generateAvatarSvg('Padre Demo'),
                 role: 'Padre Demo'
               },
               content: content || '',
@@ -547,6 +1170,7 @@ if (isMockEnabled) {
             };
 
             post.comments.push(newComment);
+            saveMockPosts(mockPosts);
             throw {
               __isMockResponse: true,
               response: {
@@ -563,6 +1187,77 @@ if (isMockEnabled) {
               response: { status: 404, data: { message: "Post no encontrado" }, config }
             };
           }
+        }
+
+        // 2b. PUT /posts/:id/comments/:commentId (editar)
+        const matchPutComment = url.match(/\/posts\/(\d+)\/comments\/(\d+)/);
+        if (matchPutComment && config.method === 'put') {
+          const postId = parseInt(matchPutComment[1]);
+          const commentId = parseInt(matchPutComment[2]);
+          const { content } = getRequestData(config);
+          
+          const post = mockPosts.find(p => p.id === postId);
+          if (post) {
+            const comment = post.comments.find(c => c.id === commentId);
+            if (comment) {
+              comment.content = content || '';
+              comment.updatedAt = new Date().toISOString();
+              saveMockPosts(mockPosts);
+              
+              throw {
+                __isMockResponse: true,
+                response: {
+                  status: 200,
+                  data: comment,
+                  statusText: 'OK',
+                  headers: {},
+                  config,
+                },
+              };
+            }
+          }
+          throw {
+            __isMockResponse: true,
+            response: {
+              status: 404,
+              data: { message: "Comentario no encontrado" },
+              config,
+            },
+          };
+        }
+
+        // 2c. DELETE /posts/:id/comments/:commentId (borrar)
+        if (matchPutComment && config.method === 'delete') {
+          const postId = parseInt(matchPutComment[1]);
+          const commentId = parseInt(matchPutComment[2]);
+          
+          const post = mockPosts.find(p => p.id === postId);
+          if (post) {
+            const commentIndex = post.comments.findIndex(c => c.id === commentId);
+            if (commentIndex !== -1) {
+              post.comments.splice(commentIndex, 1);
+              saveMockPosts(mockPosts);
+              
+              throw {
+                __isMockResponse: true,
+                response: {
+                  status: 200,
+                  data: { message: "Comentario eliminado con éxito" },
+                  statusText: 'OK',
+                  headers: {},
+                  config,
+                },
+              };
+            }
+          }
+          throw {
+            __isMockResponse: true,
+            response: {
+              status: 404,
+              data: { message: "Comentario no encontrado" },
+              config,
+            },
+          };
         }
 
         // 3. GET /posts/:id (detalle)
@@ -591,10 +1286,13 @@ if (isMockEnabled) {
 
         // 4. POST /posts (crear)
         if (config.method === 'post') {
-          const { title, content, category } = JSON.parse(config.data || '{}');
+          const { title, content, category } = getRequestData(config);
           let savedUser = null;
           try {
             savedUser = JSON.parse(localStorage.getItem('patitas_user') || 'null');
+            if (savedUser && !savedUser.avatar) {
+              savedUser.avatar = generateAvatarSvg(savedUser.name);
+            }
           } catch (_) {}
 
           const newPost = {
@@ -607,13 +1305,14 @@ if (isMockEnabled) {
             likedBy: [],
             author: savedUser || {
               name: 'Padre Demo',
-              avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+              avatar: generateAvatarSvg('Padre Demo'),
               role: 'Padre Demo'
             },
             comments: []
           };
 
           mockPosts.unshift(newPost);
+          saveMockPosts(mockPosts);
           throw {
             __isMockResponse: true,
             response: {
@@ -639,6 +1338,70 @@ if (isMockEnabled) {
         };
       }
 
+      // Interceptamos actualizaciones de perfil (PATCH /usuarios/:id)
+      if (url.includes('/usuarios/') && config.method === 'patch') {
+        const userId = parseInt(url.split('/').pop());
+        const requestData = getRequestData(config);
+        const users = getMockUsers();
+        const userIndex = users.findIndex(u => u.id === userId);
+        
+        if (userIndex === -1) {
+          throw {
+            __isMockResponse: true,
+            response: {
+              status: 404,
+              data: { message: 'Usuario no encontrado.' },
+              config
+            }
+          };
+        }
+        
+        // Update user fields
+        const updatedUser = {
+          ...users[userIndex],
+          ...requestData
+        };
+        
+        users[userIndex] = updatedUser;
+        saveMockUsers(users);
+        
+        // Update local session storage if it matches current user
+        const currentUser = JSON.parse(localStorage.getItem('patitas_user') || '{}');
+        if (currentUser.id === userId) {
+          localStorage.setItem('patitas_user', JSON.stringify({
+            id: updatedUser.id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            role: updatedUser.role,
+            avatar: updatedUser.avatar,
+            createdAt: updatedUser.createdAt,
+            savedResources: updatedUser.savedResources || []
+          }));
+        }
+        
+        throw {
+          __isMockResponse: true,
+          response: {
+            status: 200,
+            data: {
+              message: 'Perfil actualizado',
+              user: {
+                id: updatedUser.id,
+                name: updatedUser.name,
+                email: updatedUser.email,
+                role: updatedUser.role,
+                avatar: updatedUser.avatar,
+                createdAt: updatedUser.createdAt,
+                savedResources: updatedUser.savedResources || []
+              }
+            },
+            statusText: 'OK',
+            headers: {},
+            config
+          }
+        };
+      }
+
       // Interceptamos rutas de autenticación
       if (url.includes('/auth/')) {
         // Retraso de red simulado para una UX realista (spinners, loaders, etc.)
@@ -647,31 +1410,76 @@ if (isMockEnabled) {
         let mockData = {};
 
         if (url.endsWith('/login')) {
-          const { email } = JSON.parse(config.data || '{}');
+          const { email, password } = getRequestData(config);
+          const users = getMockUsers();
+          const foundUser = users.find(u => u && u.email && u.email.toLowerCase() === (email || '').toLowerCase());
+          
+          if (!foundUser || foundUser.password !== password) {
+            throw {
+              __isMockResponse: true,
+              response: {
+                status: 401,
+                data: { message: 'El correo electrónico o la contraseña son incorrectos.' },
+                config
+              }
+            };
+          }
+
           mockData = {
             token: `mock-jwt-token-login-${Date.now()}`,
             user: {
-              id: 1,
-              name: 'Padre Demo',
-              email: email || 'demo@example.com',
-              role: 'user',
-              createdAt: new Date().toISOString(),
+              id: foundUser.id,
+              name: foundUser.name,
+              email: foundUser.email,
+              role: foundUser.role,
+              avatar: foundUser.avatar || generateAvatarSvg(foundUser.name),
+              createdAt: foundUser.createdAt,
+              savedResources: foundUser.savedResources || []
             },
           };
         } else if (url.endsWith('/register')) {
-          const { name, email } = JSON.parse(config.data || '{}');
+          const { name, email, password, childName } = getRequestData(config);
+          const users = getMockUsers();
+          
+          if (users.some(u => u && u.email && u.email.toLowerCase() === (email || '').toLowerCase())) {
+            throw {
+              __isMockResponse: true,
+              response: {
+                status: 400,
+                data: { message: 'El correo electrónico ya está registrado.' },
+                config
+              }
+            };
+          }
+
+          const newUser = {
+            id: Math.floor(Math.random() * 1000) + 10,
+            name: name || 'Usuario Registrado',
+            email: email || 'nuevo@example.com',
+            password: password || 'password',
+            role: childName ? `padre(s) de: ${childName}` : 'user',
+            avatar: generateAvatarSvg(name || 'Usuario Registrado'),
+            createdAt: new Date().toISOString(),
+            savedResources: []
+          };
+
+          users.push(newUser);
+          saveMockUsers(users);
+
           mockData = {
             token: `mock-jwt-token-register-${Date.now()}`,
             user: {
-              id: Math.floor(Math.random() * 1000) + 10,
-              name: name || 'Usuario Registrado',
-              email: email || 'nuevo@example.com',
-              role: 'user',
-              createdAt: new Date().toISOString(),
+              id: newUser.id,
+              name: newUser.name,
+              email: newUser.email,
+              role: newUser.role,
+              avatar: newUser.avatar,
+              createdAt: newUser.createdAt,
+              savedResources: []
             },
           };
         } else if (url.includes('/oauth')) {
-          const { provider, email } = JSON.parse(config.data || '{}');
+          const { provider, email } = getRequestData(config);
           const providerName = provider ? provider.charAt(0).toUpperCase() + provider.slice(1) : 'Social';
           mockData = {
             token: `mock-jwt-token-oauth-${provider}-${Date.now()}`,
@@ -680,6 +1488,7 @@ if (isMockEnabled) {
               name: `${providerName} Demo`,
               email: email || `${provider}-user@example.com`,
               role: 'user',
+              avatar: generateAvatarSvg(`${providerName} Demo`),
               createdAt: new Date().toISOString(),
             },
           };
@@ -698,7 +1507,22 @@ if (isMockEnabled) {
 
           let savedUser = null;
           try {
-            savedUser = JSON.parse(localStorage.getItem('patitas_user') || 'null');
+            const localUser = JSON.parse(localStorage.getItem('patitas_user') || 'null');
+            if (localUser) {
+              const users = getMockUsers();
+              const found = users.find(u => u.id === localUser.id);
+              if (found) {
+                savedUser = {
+                  id: found.id,
+                  name: found.name,
+                  email: found.email,
+                  role: found.role,
+                  avatar: found.avatar || generateAvatarSvg(found.name),
+                  createdAt: found.createdAt,
+                  savedResources: found.savedResources || []
+                };
+              }
+            }
           } catch (_) {}
 
           mockData = {
@@ -707,8 +1531,45 @@ if (isMockEnabled) {
               name: 'Padre Demo',
               email: 'demo@example.com',
               role: 'user',
+              avatar: generateAvatarSvg('Padre Demo'),
               createdAt: new Date().toISOString(),
+              savedResources: [1, 3]
             },
+          };
+        } else if (url.endsWith('/change-password')) {
+          const { userId, currentPassword, newPassword } = getRequestData(config);
+          const users = getMockUsers();
+          const userIndex = users.findIndex(u => u.id === userId);
+          
+          if (userIndex === -1) {
+            throw {
+              __isMockResponse: true,
+              response: {
+                status: 404,
+                data: { message: 'Usuario no encontrado.' },
+                config
+              }
+            };
+          }
+          
+          const foundUser = users[userIndex];
+          if (foundUser.password !== currentPassword) {
+            throw {
+              __isMockResponse: true,
+              response: {
+                status: 400,
+                data: { message: 'La contraseña actual es incorrecta.' },
+                config
+              }
+            };
+          }
+          
+          foundUser.password = newPassword;
+          users[userIndex] = foundUser;
+          saveMockUsers(users);
+          
+          mockData = {
+            message: 'Contraseña actualizada con éxito. Se han cerrado las sesiones en otros dispositivos.'
           };
         }
 
@@ -735,7 +1596,10 @@ if (isMockEnabled) {
     (response) => response,
     (error) => {
       if (error && error.__isMockResponse) {
-        if (error.response.status === 200) {
+        if (error.response.status >= 200 && error.response.status < 300) {
+          if (error.response.data) {
+            error.response.data = JSON.parse(JSON.stringify(error.response.data));
+          }
           return Promise.resolve(error.response);
         } else {
           return Promise.reject(error.response);

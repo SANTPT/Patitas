@@ -119,12 +119,12 @@ export const useAuthStore = defineStore('auth', () => {
    * @param {string} password
    * @returns {Promise<{success: boolean, error?: string}>}
    */
-  async function register(name, email, password) {
+  async function register(name, email, password, childName) {
     isLoading.value = true;
     error.value = null;
 
     try {
-      const response = await api.post('/auth/register', { name, email, password });
+      const response = await api.post('/auth/register', { name, email, password, childName });
       const { token: newToken, user: newUser } = response.data;
 
       // Guardar en estado y persistir
@@ -158,6 +158,61 @@ export const useAuthStore = defineStore('auth', () => {
       return { success: true };
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Error al iniciar sesión social.';
+      error.value = msg;
+      return { success: false, error: msg };
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /**
+   * Actualiza el perfil del usuario (nombre, avatar, recursos guardados).
+   * @param {Object} updatedData
+   * @returns {Promise<{success: boolean, error?: string, user?: Object}>}
+   */
+  async function updateProfile(updatedData) {
+    if (!user.value) return { success: false, error: 'Usuario no autenticado' };
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      const response = await api.patch(`/usuarios/${user.value.id}`, updatedData);
+      const updatedUser = response.data.user;
+
+      // Actualizar en estado local y persistir
+      user.value = updatedUser;
+      localStorage.setItem('patitas_user', JSON.stringify(updatedUser));
+
+      return { success: true, user: updatedUser };
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Error al actualizar el perfil. Inténtalo de nuevo.';
+      error.value = msg;
+      return { success: false, error: msg };
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /**
+   * Cambia la contraseña del usuario tras validar la actual.
+   * @param {string} currentPassword
+   * @param {string} newPassword
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async function changePassword(currentPassword, newPassword) {
+    if (!user.value) return { success: false, error: 'Usuario no autenticado' };
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      await api.post('/auth/change-password', {
+        userId: user.value.id,
+        currentPassword,
+        newPassword
+      });
+      return { success: true };
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Error al cambiar la contraseña. Inténtalo de nuevo.';
       error.value = msg;
       return { success: false, error: msg };
     } finally {
@@ -199,5 +254,7 @@ export const useAuthStore = defineStore('auth', () => {
     me,
     register,
     loginOAuth,
+    updateProfile,
+    changePassword,
   };
 });

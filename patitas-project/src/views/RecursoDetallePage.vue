@@ -73,6 +73,15 @@
               <span class="material-symbols-outlined">download</span>
               <span>{{ downloading ? 'Preparando...' : 'Descargar PDF' }}</span>
             </button>
+            <button 
+              class="save-resource-btn" 
+              @click="toggleSaveResource" 
+              :class="{ saved: isSaved }"
+              type="button"
+            >
+              <span class="material-symbols-outlined">{{ isSaved ? 'bookmark_added' : 'bookmark' }}</span>
+              <span>{{ isSaved ? 'Guardado en tu perfil' : 'Guardar recurso' }}</span>
+            </button>
             <transition name="toast-fade">
               <div v-if="showToast" class="download-toast">
                 <span class="material-symbols-outlined">check_circle</span>
@@ -189,6 +198,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useAuthStore } from '../stores/auth';
 import api from '../services/api';
 
 const route = useRoute();
@@ -277,6 +287,48 @@ const getTipNumber = (tipStr) => {
 
 const getTipText = (tipStr) => {
   return tipStr.replace(/^(\d+\.|•)\s*/, '');
+};
+
+const authStore = useAuthStore();
+
+const isSaved = computed(() => {
+  if (!authStore.user || !authStore.user.savedResources || !resource.value) return false;
+  return authStore.user.savedResources.includes(resource.value.id);
+});
+
+const toggleSaveResource = async () => {
+  if (!authStore.isAuthenticated) {
+    window.dispatchEvent(new CustomEvent('open-login-modal'));
+    window.dispatchEvent(new CustomEvent('show-toast', {
+      detail: { message: 'Inicia sesión para poder guardar recursos.', type: 'info' }
+    }));
+    return;
+  }
+
+  const willSave = !isSaved.value;
+  let updatedList;
+  if (isSaved.value) {
+    updatedList = authStore.user.savedResources.filter(id => id !== resource.value.id);
+  } else {
+    updatedList = [...(authStore.user.savedResources || []), resource.value.id];
+  }
+
+  const result = await authStore.updateProfile({
+    savedResources: updatedList
+  });
+
+  if (result.success) {
+    window.dispatchEvent(new CustomEvent('show-toast', {
+      detail: { 
+        message: willSave ? 'Recurso guardado en tu perfil.' : 'Recurso eliminado de tus guardados.', 
+        type: 'success' 
+      }
+    }));
+  } else {
+    window.dispatchEvent(new CustomEvent('show-toast', {
+      detail: { message: 'Error al actualizar recursos guardados.', type: 'error' }
+    }));
+  }
 };
 
 watch(() => route.params.id, () => {
@@ -528,6 +580,40 @@ onMounted(() => {
 .download-pdf-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.save-resource-btn {
+  width: 100%;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--button-purple, #c58cf2);
+  background: white;
+  border: 1.5px solid var(--button-purple, #c58cf2);
+  padding: 0.75rem 1.25rem;
+  border-radius: 5.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  transition: all 0.22s ease;
+}
+
+.save-resource-btn:hover {
+  background: rgba(197, 140, 242, 0.05);
+  transform: translateY(-1px);
+}
+
+.save-resource-btn.saved {
+  background: #f3e5f5;
+  border-color: var(--button-purple, #c58cf2);
+  color: var(--button-purple, #c58cf2);
+}
+
+.save-resource-btn.saved span.material-symbols-outlined {
+  font-variation-settings: 'FILL' 1;
 }
 
 .download-toast {

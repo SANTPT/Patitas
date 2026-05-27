@@ -14,6 +14,11 @@ const errorMsg = ref('');
 const commentText = ref('');
 const isSubmittingComment = ref(false);
 
+// Variables de edición/borrado de comentarios
+const editingCommentId = ref(null);
+const editCommentText = ref('');
+const isSubmittingEdit = ref(false);
+
 const postId = computed(() => route.params.id);
 
 async function fetchPost() {
@@ -51,16 +56,13 @@ const isLiked = computed(() => {
 // Manejar Like con actualización optimista
 async function handleLike() {
   if (!authStore.isAuthenticated) {
-    const event = new CustomEvent('show-toast', {
-      detail: {
-        message: 'Debes iniciar sesión para reaccionar a publicaciones.',
-        type: 'info'
+    router.push({
+      path: '/login',
+      query: {
+        redirect: route.fullPath,
+        message: 'Debes iniciar sesión para participar en la comunidad'
       }
     });
-    window.dispatchEvent(event);
-    
-    // Abrir login modal
-    window.dispatchEvent(new CustomEvent('open-login-modal'));
     return;
   }
 
@@ -121,7 +123,130 @@ async function submitComment() {
 }
 
 function openLogin() {
-  window.dispatchEvent(new CustomEvent('open-login-modal'));
+  router.push({
+    path: '/login',
+    query: {
+      redirect: route.fullPath,
+      message: 'Debes iniciar sesión para participar en la comunidad'
+    }
+  });
+}
+
+// Comprobar si el comentario es propio
+function isMyComment(comment) {
+  if (!authStore.isAuthenticated || !authStore.user || !comment || !comment.author) return false;
+  
+  if (comment.author.email && authStore.user.email) {
+    return comment.author.email.toLowerCase() === authStore.user.email.toLowerCase();
+  }
+  if (comment.author.id && authStore.user.id) {
+    return comment.author.id === authStore.user.id;
+  }
+  return comment.author.name === authStore.user.name;
+}
+
+function startEdit(comment) {
+  editingCommentId.value = comment.id;
+  editCommentText.value = comment.content;
+}
+
+function cancelEdit() {
+  editingCommentId.value = null;
+  editCommentText.value = '';
+}
+
+async function saveEdit(commentId) {
+  if (!editCommentText.value.trim()) return;
+
+  isSubmittingEdit.value = true;
+  try {
+    const res = await api.put(`/posts/${post.value.id}/comments/${commentId}`, {
+      content: editCommentText.value.trim()
+    });
+
+    const index = post.value.comments.findIndex(c => c.id === commentId);
+    if (index !== -1) {
+      post.value.comments[index].content = res.data.content;
+    }
+    
+    cancelEdit();
+    
+    const event = new CustomEvent('show-toast', {
+      detail: {
+        message: '¡Respuesta editada con éxito!',
+        type: 'success'
+      }
+    });
+    window.dispatchEvent(event);
+  } catch (err) {
+    const event = new CustomEvent('show-toast', {
+      detail: {
+        message: 'Error al editar la respuesta. Reintenta.',
+        type: 'error'
+      }
+    });
+    window.dispatchEvent(event);
+  } finally {
+    isSubmittingEdit.value = false;
+  }
+}
+
+async function deleteComment(commentId) {
+  if (!confirm('¿Estás seguro de que deseas eliminar este comentario?')) return;
+
+  try {
+    await api.delete(`/posts/${post.value.id}/comments/${commentId}`);
+
+    post.value.comments = post.value.comments.filter(c => c.id !== commentId);
+
+    const event = new CustomEvent('show-toast', {
+      detail: {
+        message: '¡Respuesta eliminada!',
+        type: 'success'
+      }
+    });
+    window.dispatchEvent(event);
+  } catch (err) {
+    const event = new CustomEvent('show-toast', {
+      detail: {
+        message: 'Error al eliminar el comentario. Reintenta.',
+        type: 'error'
+      }
+    });
+    window.dispatchEvent(event);
+  }
+}
+
+// Generar Avatar SVG estético de forma dinámica a partir de las iniciales de un nombre
+function getAvatarFallback(name) {
+  const colors = [
+    '#c58cf2', // Morado patitas
+    '#5bbfd6', // Azul patitas
+    '#f6ad55', // Naranja
+    '#fc8181', // Rosa
+    '#4fd1c5', // Cerceta
+    '#68d391', // Verde
+    '#63b3ed'  // Celeste
+  ];
+  
+  const parts = (name || 'P').trim().split(/\s+/);
+  const initials = parts.length > 1 
+    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    : parts[0].substring(0, Math.min(2, parts[0].length)).toUpperCase();
+    
+  let hash = 0;
+  for (let i = 0; i < (name || '').length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const colorIndex = Math.abs(hash) % colors.length;
+  const color = colors[colorIndex];
+  
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <circle cx='50' cy='50' r='50' fill='${color.replace('#', '%23')}'/>
+    <text x='50%' y='55%' font-family='sans-serif' font-size='40' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='middle'>${initials}</text>
+  </svg>`;
+  
+  return `data:image/svg+xml;utf8,${svg}`;
 }
 
 onMounted(() => {
@@ -156,7 +281,7 @@ onMounted(() => {
       <!-- Post principal -->
       <article class="main-post-card">
         <header class="post-header">
-          <img :src="post.author.avatar" :alt="post.author.name" class="author-avatar" />
+          <img :src="post.author.avatar || getAvatarFallback(post.author.name)" :alt="post.author.name" class="author-avatar" />
           <div class="author-info">
             <h4 class="author-name">{{ post.author.name }}</h4>
             <span class="author-role">{{ post.author.role }}</span>
@@ -194,15 +319,53 @@ onMounted(() => {
           </div>
           <div v-else v-for="comment in post.comments" :key="comment.id" class="comment-card">
             <header class="comment-header">
-              <img :src="comment.author.avatar" :alt="comment.author.name" class="comment-avatar" />
+              <img :src="comment.author.avatar || getAvatarFallback(comment.author.name)" :alt="comment.author.name" class="comment-avatar" />
               <div class="comment-author-info">
                 <h5>{{ comment.author.name }}</h5>
                 <span>{{ comment.author.role }}</span>
               </div>
-              <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
+              <div class="comment-header-right">
+                <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
+                <div v-if="isMyComment(comment) && editingCommentId !== comment.id" class="comment-actions">
+                  <button @click="startEdit(comment)" class="action-btn edit" title="Editar comentario">
+                    <span class="material-symbols-outlined">edit</span>
+                  </button>
+                  <button @click="deleteComment(comment.id)" class="action-btn delete" title="Borrar comentario">
+                    <span class="material-symbols-outlined">delete</span>
+                  </button>
+                </div>
+              </div>
             </header>
             <div class="comment-content">
-              <p>{{ comment.content }}</p>
+              <div v-if="editingCommentId === comment.id" class="edit-comment-wrapper">
+                <textarea 
+                  v-model="editCommentText"
+                  rows="3"
+                  class="edit-textarea"
+                  :disabled="isSubmittingEdit"
+                  placeholder="Edita tu respuesta..."
+                ></textarea>
+                <div class="edit-actions-row">
+                  <button 
+                    type="button"
+                    @click="cancelEdit" 
+                    class="btn-cancel" 
+                    :disabled="isSubmittingEdit"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="button"
+                    @click="saveEdit(comment.id)" 
+                    class="btn-save" 
+                    :disabled="isSubmittingEdit || !editCommentText.trim()"
+                  >
+                    <span v-if="isSubmittingEdit" class="spinner-small"></span>
+                    <span>{{ isSubmittingEdit ? 'Guardando...' : 'Guardar' }}</span>
+                  </button>
+                </div>
+              </div>
+              <p v-else>{{ comment.content }}</p>
             </div>
           </div>
         </div>
@@ -460,6 +623,10 @@ onMounted(() => {
   border-color: rgba(229, 62, 62, 0.2);
 }
 
+.like-btn.is-liked .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 48;
+}
+
 /* Comments Section */
 .comments-section {
   background: white;
@@ -532,9 +699,126 @@ onMounted(() => {
 }
 
 .comment-date {
-  margin-left: auto;
   font-size: 0.72rem;
   opacity: 0.5;
+}
+
+/* Acciones y edición de comentarios */
+.comment-header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.33rem;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, color 0.2s;
+  color: #a0aec0;
+}
+
+.action-btn:hover {
+  background-color: #edf2f7;
+}
+
+.action-btn.edit:hover {
+  color: var(--button-purple);
+}
+
+.action-btn.delete:hover {
+  color: #e53e3e;
+}
+
+.action-btn span {
+  font-size: 1.1rem;
+}
+
+.edit-comment-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.edit-textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.89rem;
+  padding: 0.67rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 0.67rem;
+  outline: none;
+  resize: vertical;
+  color: var(--text-blue);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.edit-textarea:focus {
+  border-color: var(--button-purple);
+  box-shadow: 0 0 0 3px rgba(197, 140, 242, 0.15);
+}
+
+.edit-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.btn-cancel {
+  background: #edf2f7;
+  color: #4a5568;
+  border: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 1.5rem;
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-cancel:hover {
+  background: #e2e8f0;
+}
+
+.btn-save {
+  background: var(--button-purple);
+  color: white;
+  border: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 1.5rem;
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.33rem;
+  box-shadow: var(--shadow-purple);
+}
+
+.btn-save:hover:not(:disabled) {
+  background: var(--button-purple-hover);
+  transform: translateY(-1px);
+}
+
+.btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .comment-content p {

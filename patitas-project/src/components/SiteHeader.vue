@@ -181,13 +181,14 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useCartStore } from '../stores/cart';
 
 const emit = defineEmits(['open-login']);
 const authStore = useAuthStore();
 const cartStore = useCartStore();
+const router = useRouter();
 
 const menuOpen = ref(false);
 const isSticky = ref(false);
@@ -198,9 +199,9 @@ const navItems = ref([
   { label: 'inicio',   href: '/' },
   { label: 'recursos', href: '/recursos' },
   { label: 'comunidad patitas', href: '/comunidad' },
+  { label: 'centros',  href: '/centros' },
   { label: 'tienda',   href: '/tienda' },
-  { label: 'nosotros', href: '#' },
-  { label: 'contacto', href: '#' },
+  { label: 'contacto', href: '/contacto' },
 ]);
 
 const handleScroll = () => {
@@ -215,15 +216,8 @@ function formatPrice(val) {
 }
 
 function handleCheckout() {
-  const event = new CustomEvent('show-toast', {
-    detail: {
-      message: '¡Procediendo al pago! Compra simulada con éxito.',
-      type: 'success'
-    }
-  });
-  window.dispatchEvent(event);
-  cartStore.clearCart();
   isCartOpen.value = false;
+  router.push({ name: 'checkout' });
 }
 
 const openCartDrawer = () => {

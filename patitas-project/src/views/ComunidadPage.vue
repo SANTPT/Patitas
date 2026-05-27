@@ -1,36 +1,30 @@
 <template>
   <div class="comunidad-page">
-    <div class="container page-content">
-      <!-- Breadcrumbs -->
-      <nav class="breadcrumbs" aria-label="Breadcrumb">
-        <router-link to="/recursos">Recursos</router-link>
-        <span class="separator-icon">/</span>
-        <router-link to="/comunidad" class="active-crumb">Comunidad</router-link>
-        <span class="separator-icon">/</span>
-        <span class="current-item" aria-current="page">Comunidad Patitas</span>
-      </nav>
+    <header class="page-header">
+      <div class="header-content container">
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <router-link to="/">Inicio</router-link>
+          <span class="separator-icon">/</span>
+          <span class="current-item" aria-current="page">Comunidad Patitas</span>
+        </nav>
+        <span class="badge-tag">Comunidad</span>
+        <h1 class="page-title">Comunidad Patitas: Un espacio para compartir y sanar</h1>
+        <p class="page-subtitle">
+          Conecta con otras familias en tu misma situación. Encuentra el apoyo, la comprensión y los recursos que solo quienes recorren este camino pueden ofrecer.
+        </p>
+        <button @click="openNewPostModal" class="btn-join-community">
+          <span class="material-symbols-outlined">favorite</span>
+          <span>Nueva Publicación</span>
+        </button>
+      </div>
+      <div class="header-wave-bottom">
+        <svg viewBox="0 0 1440 56" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <path d="M0 28C480 56 960 0 1440 28L1440 56L0 56Z" fill="var(--page-bg, #f0f8ff)"/>
+        </svg>
+      </div>
+    </header>
 
-      <!-- Hero Header Section -->
-      <header class="community-hero">
-        <div class="hero-text-col">
-          <span class="badge-tag">Comunidad</span>
-          <h1 class="hero-title">Comunidad Patitas: Un espacio para compartir y sanar</h1>
-          <p class="hero-desc">
-            Conecta con otras familias en tu misma situación. Encuentra el apoyo, la comprensión y los recursos que solo quienes recorren este camino pueden ofrecer.
-          </p>
-          <button @click="openNewPostModal" class="btn-join-community">
-            <span class="material-symbols-outlined">favorite</span>
-            <span>Nueva Publicación</span>
-          </button>
-        </div>
-        <div class="hero-image-col">
-          <img 
-            :src="heroImage" 
-            alt="Conexión y neurodiversidad en la Comunidad Patitas" 
-            class="hero-img"
-          />
-        </div>
-      </header>
+    <div class="container page-content">
 
       <!-- Layout de Dos Columnas -->
       <div class="main-layout">
@@ -129,10 +123,16 @@
 
             <div v-else class="posts-list">
               <PostCard 
-                v-for="post in filteredPosts" 
+                v-for="post in paginatedPosts" 
                 :key="post.id" 
                 :post="post" 
               />
+            </div>
+
+            <!-- Loader para scroll infinito -->
+            <div ref="scrollLoader" class="infinite-scroll-loader" v-if="hasMorePosts">
+              <span class="spinner"></span>
+              <span>Cargando más publicaciones...</span>
             </div>
           </div>
 
@@ -292,8 +292,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api from '../services/api';
 import PostCard from '../components/PostCard.vue';
@@ -301,6 +301,7 @@ import NewPostModal from '../components/NewPostModal.vue';
 import heroImage from '../assets/hero.png';
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 
 const activeTab = ref('foros');
@@ -332,7 +333,13 @@ const filteredPosts = computed(() => {
 
 function handleAction(actionName) {
   if (!authStore.isAuthenticated) {
-    window.dispatchEvent(new CustomEvent('open-login-modal'));
+    router.push({
+      path: '/login',
+      query: {
+        redirect: '/comunidad',
+        message: 'Debes iniciar sesión para participar en la comunidad'
+      }
+    });
   } else {
     const event = new CustomEvent('show-toast', {
       detail: {
@@ -346,14 +353,13 @@ function handleAction(actionName) {
 
 function openNewPostModal() {
   if (!authStore.isAuthenticated) {
-    const event = new CustomEvent('show-toast', {
-      detail: {
-        message: 'Debes iniciar sesión para publicar en el foro.',
-        type: 'info'
+    router.push({
+      path: '/login',
+      query: {
+        redirect: '/comunidad?open=new-post',
+        message: 'Debes iniciar sesión para participar en la comunidad'
       }
     });
-    window.dispatchEvent(event);
-    window.dispatchEvent(new CustomEvent('open-login-modal'));
   } else {
     showNewPostModal.value = true;
   }
@@ -361,10 +367,63 @@ function openNewPostModal() {
 
 function handlePostCreated(newPost) {
   posts.value.unshift(newPost);
+  displayedPostsCount.value = Math.max(displayedPostsCount.value, posts.value.length);
 }
+
+const scrollLoader = ref(null);
+const displayedPostsCount = ref(3);
+const isInfiniteLoading = ref(false);
+
+const paginatedPosts = computed(() => {
+  return filteredPosts.value.slice(0, displayedPostsCount.value);
+});
+
+const hasMorePosts = computed(() => {
+  return displayedPostsCount.value < filteredPosts.value.length;
+});
+
+let observer = null;
+
+function loadMorePosts() {
+  isInfiniteLoading.value = true;
+  setTimeout(() => {
+    displayedPostsCount.value += 3;
+    isInfiniteLoading.value = false;
+  }, 1000);
+}
+
+watch(selectedCategory, () => {
+  displayedPostsCount.value = 3;
+});
+
+watch(scrollLoader, (newEl) => {
+  if (observer) {
+    observer.disconnect();
+  }
+  if (newEl) {
+    if (!observer) {
+      observer = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && !isInfiniteLoading.value && hasMorePosts.value) {
+          loadMorePosts();
+        }
+      }, {
+        rootMargin: '100px'
+      });
+    }
+    observer.observe(newEl);
+  }
+});
 
 onMounted(() => {
   fetchPosts();
+  if (route.query.open === 'new-post' && authStore.isAuthenticated) {
+    showNewPostModal.value = true;
+    router.replace({ query: { ...route.query, open: undefined } });
+  }
+});
+
+onUnmounted(() => {
+  if (observer) observer.disconnect();
 });
 </script>
 
@@ -388,45 +447,70 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-blue);
+  opacity: 0.8;
+  margin-bottom: 1rem;
+}
+
 .breadcrumbs a {
-  color: var(--text-blue, #1a5b82);
-  opacity: 0.7;
-  text-decoration: none;
-  transition: opacity 0.2s;
+  transition: color 0.2s;
 }
 
 .breadcrumbs a:hover {
-  opacity: 1;
-  text-decoration: underline;
+  color: var(--button-purple);
 }
 
 .breadcrumbs .separator-icon {
-  opacity: 0.4;
-  font-weight: 300;
+  color: rgba(26, 91, 130, 0.3);
 }
 
-.breadcrumbs .active-crumb {
-  opacity: 0.7;
+/* ─── PAGE HEADER ─── */
+.page-header {
+  background-image: url('../assets/fondo_azul.png');
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  padding: 4.5rem 0 5.5rem;
+  text-align: center;
+  margin-bottom: 3rem;
 }
 
-.breadcrumbs .current-item {
-  opacity: 0.9;
-  font-weight: 600;
+.header-wave-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3.11rem;
+  z-index: 2;
 }
 
-/* ─── HERO HEADER ─── */
-.community-hero {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3rem;
-  align-items: center;
-  margin-bottom: 3.5rem;
+.header-wave-bottom svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
-.hero-text-col {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+.page-title {
+  font-family: 'Fredoka', sans-serif;
+  font-size: clamp(2.2rem, 4vw, 3rem);
+  font-weight: 700;
+  color: var(--text-blue);
+  margin-bottom: 0.75rem;
+}
+
+.page-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-blue);
+  opacity: 0.85;
+  max-width: 38rem;
+  margin: 0 auto 1.5rem;
+  line-height: 1.6;
 }
 
 .badge-tag {
@@ -439,20 +523,7 @@ onMounted(() => {
   padding: 0.3rem 0.9rem;
   border-radius: 5.5rem;
   margin-bottom: 1rem;
-}
-
-.hero-title {
-  font-size: clamp(1.8rem, 3.5vw, 2.5rem);
-  font-weight: 700;
-  line-height: 1.25;
-  margin: 0 0 1.2rem;
-}
-
-.hero-desc {
-  font-size: 1.05rem;
-  line-height: 1.6;
-  opacity: 0.85;
-  margin-bottom: 2rem;
+  display: inline-block;
 }
 
 .btn-join-community {
@@ -476,21 +547,6 @@ onMounted(() => {
   background: var(--button-purple-hover, #b373e6);
   transform: translateY(-2px);
   box-shadow: 0 0.35rem 1.2rem rgba(197, 140, 242, 0.45);
-}
-
-.hero-image-col {
-  width: 100%;
-  border-radius: 2rem;
-  overflow: hidden;
-  box-shadow: 0 0.6rem 2rem rgba(26, 91, 130, 0.1);
-  background-color: white;
-}
-
-.hero-img {
-  width: 100%;
-  max-height: 22rem;
-  object-fit: cover;
-  display: block;
 }
 
 /* ─── LAYOUT DE COLUMNAS ─── */
@@ -1202,13 +1258,6 @@ onMounted(() => {
 
 /* ─── RESPONSIVE ─── */
 @media (max-width: 992px) {
-  .community-hero {
-    grid-template-columns: 1fr;
-    gap: 2rem;
-  }
-  .hero-image-col {
-    order: -1;
-  }
   .main-layout {
     grid-template-columns: 1fr;
     gap: 2rem;
@@ -1233,5 +1282,34 @@ onMounted(() => {
   .groups-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ─── LOADER PARA SCROLL INFINITO ─── */
+.infinite-scroll-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  margin-top: 1rem;
+  background: white;
+  border-radius: 1rem;
+  border: 1px solid rgba(26, 91, 130, 0.08);
+  color: var(--text-blue);
+  font-weight: 500;
+  box-shadow: var(--shadow-soft);
+}
+
+.infinite-scroll-loader .spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--button-purple-soft);
+  border-top-color: var(--button-purple);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

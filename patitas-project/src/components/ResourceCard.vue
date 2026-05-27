@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useAuthStore } from '../stores/auth';
 
 const props = defineProps({
   resource: {
@@ -9,6 +10,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['view-details']);
+const authStore = useAuthStore();
 
 // Traducir categoría y asignar clase de estilo de badge
 const categoryMeta = computed(() => {
@@ -25,6 +27,46 @@ const categoryMeta = computed(() => {
       return { label: 'Recurso', class: 'tag-default', icon: 'description' };
   }
 });
+
+const isSaved = computed(() => {
+  if (!authStore.user || !authStore.user.savedResources) return false;
+  return authStore.user.savedResources.includes(props.resource.id);
+});
+
+const toggleSave = async () => {
+  if (!authStore.isAuthenticated) {
+    window.dispatchEvent(new CustomEvent('open-login-modal'));
+    window.dispatchEvent(new CustomEvent('show-toast', {
+      detail: { message: 'Inicia sesión para poder guardar recursos.', type: 'info' }
+    }));
+    return;
+  }
+
+  const willSave = !isSaved.value;
+  let updatedList;
+  if (isSaved.value) {
+    updatedList = authStore.user.savedResources.filter(id => id !== props.resource.id);
+  } else {
+    updatedList = [...(authStore.user.savedResources || []), props.resource.id];
+  }
+
+  const result = await authStore.updateProfile({
+    savedResources: updatedList
+  });
+
+  if (result.success) {
+    window.dispatchEvent(new CustomEvent('show-toast', {
+      detail: { 
+        message: willSave ? 'Recurso guardado en tu perfil.' : 'Recurso eliminado de tus guardados.', 
+        type: 'success' 
+      }
+    }));
+  } else {
+    window.dispatchEvent(new CustomEvent('show-toast', {
+      detail: { message: 'Error al actualizar recursos guardados.', type: 'error' }
+    }));
+  }
+};
 </script>
 
 <template>
@@ -37,6 +79,16 @@ const categoryMeta = computed(() => {
         <span class="material-symbols-outlined badge-icon">{{ categoryMeta.icon }}</span>
         {{ categoryMeta.label }}
       </span>
+      <!-- Botón guardar flotante -->
+      <button 
+        class="bookmark-btn" 
+        @click.stop="toggleSave" 
+        :class="{ active: isSaved }"
+        :title="isSaved ? 'Eliminar de guardados' : 'Guardar recurso'"
+        type="button"
+      >
+        <span class="material-symbols-outlined">{{ isSaved ? 'bookmark_added' : 'bookmark' }}</span>
+      </button>
     </div>
 
     <!-- Contenido -->
@@ -225,5 +277,40 @@ const categoryMeta = computed(() => {
 
 .btn-more:hover .btn-arrow {
   transform: translateX(3px);
+}
+
+/* Estilo premium del botón guardar flotante */
+.bookmark-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 50%;
+  background: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+  z-index: 10;
+  color: #718096;
+}
+
+.bookmark-btn:hover {
+  transform: scale(1.1);
+  color: var(--button-purple);
+  box-shadow: 0 6px 14px rgba(197, 140, 242, 0.25);
+}
+
+.bookmark-btn.active {
+  color: var(--button-purple);
+  background: #f3e5f5;
+}
+
+.bookmark-btn.active span {
+  font-variation-settings: 'FILL' 1;
 }
 </style>

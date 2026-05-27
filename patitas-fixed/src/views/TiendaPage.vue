@@ -121,20 +121,92 @@
         <button @click="clearAll" class="empty-btn">Ver todos los productos</button>
       </div>
 
-      <!-- CTA: Consultar estado de pedido -->
+      <!-- CTA: Consultar estado de pedido (mejorado con modal inline) -->
       <div class="order-status-cta">
         <div class="cta-left">
           <span class="cta-icon">📦</span>
           <div>
             <strong>¿Ya realizaste una compra?</strong>
-            <span>Consulta el estado de tu envío en tiempo real.</span>
+            <span>Consulta el estado de tu envío o gestiona cambios y devoluciones.</span>
           </div>
         </div>
-        <RouterLink to="/pedido" class="cta-btn">
-          <span class="material-symbols-outlined">local_shipping</span>
-          Ver estado del pedido
-        </RouterLink>
+        <div class="cta-actions">
+          <button class="cta-btn-primary" @click="orderModalOpen = true">
+            <span class="material-symbols-outlined">local_shipping</span>
+            Estado del pedido
+          </button>
+          <RouterLink to="/devoluciones" class="cta-btn-secondary">
+            <span class="material-symbols-outlined">assignment_return</span>
+            Cambios y devoluciones
+          </RouterLink>
+        </div>
       </div>
+
+    <!-- Modal: Rastreo rápido de pedido -->
+    <Transition name="modal-fade">
+      <div v-if="orderModalOpen" class="order-modal-overlay" @click.self="orderModalOpen = false">
+        <div class="order-modal">
+          <div class="omodal-header">
+            <span class="material-symbols-outlined omodal-icon">local_shipping</span>
+            <div>
+              <h3>Consultar estado de pedido</h3>
+              <p>Introduce el código de tu pedido (PT-XXXXX)</p>
+            </div>
+            <button class="omodal-close" @click="orderModalOpen = false" aria-label="Cerrar">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+
+          <div v-if="!modalOrderFound && !modalError" class="omodal-search">
+            <div class="omodal-input-wrap">
+              <input
+                v-model="modalOrderCode"
+                type="text"
+                placeholder="PT-XXXXX"
+                class="omodal-input"
+                @keyup.enter="findModalOrder"
+                autocomplete="off"
+              />
+              <button class="omodal-search-btn" @click="findModalOrder">
+                <span class="material-symbols-outlined">search</span>
+              </button>
+            </div>
+            <p class="omodal-hint">El código lo encontrarás en el email de confirmación de tu compra.</p>
+          </div>
+
+          <div v-if="modalError" class="omodal-error">
+            <span class="material-symbols-outlined">error</span>
+            Código no encontrado. Comprueba que lo has escrito correctamente.
+            <button class="omodal-retry" @click="modalError = false; modalOrderCode = ''">Intentar de nuevo</button>
+          </div>
+
+          <div v-if="modalOrderFound" class="omodal-result">
+            <div class="omodal-status-row">
+              <div class="omodal-status-badge" :class="modalOrder.status">
+                <span class="material-symbols-outlined">{{ statusIcon(modalOrder.status) }}</span>
+                {{ statusLabel(modalOrder.status) }}
+              </div>
+              <span class="omodal-order-id">{{ modalOrder.id }}</span>
+            </div>
+            <div class="omodal-meta">
+              <div><small>Fecha</small><strong>{{ fmtDate(modalOrder.createdAt) }}</strong></div>
+              <div><small>Entrega estimada</small><strong class="green">{{ fmtDate(modalOrder.estimatedDelivery) }}</strong></div>
+              <div><small>Total</small><strong>{{ fmt(modalOrder.total) }}</strong></div>
+            </div>
+            <div class="omodal-actions">
+              <RouterLink :to="{ name: 'pedido', params: { id: modalOrder.id } }" class="omodal-full-btn" @click="orderModalOpen = false">
+                <span class="material-symbols-outlined">open_in_new</span>
+                Ver detalle completo
+              </RouterLink>
+              <RouterLink :to="{ name: 'devoluciones', query: { order: modalOrder.id, tab: 'devoluciones' } }" class="omodal-dev-btn" @click="orderModalOpen = false">
+                <span class="material-symbols-outlined">assignment_return</span>
+                Solicitar cambio / devolución
+              </RouterLink>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     </div>
 
@@ -163,6 +235,40 @@ const searchQuery = ref('');
 const searchFocused = ref(false);
 const toastVisible  = ref(false);
 const openFilter    = ref(null);
+
+// ── Modal rastreo de pedido
+const orderModalOpen   = ref(false);
+const modalOrderCode   = ref('');
+const modalOrderFound  = ref(false);
+const modalError       = ref(false);
+const modalOrder       = ref(null);
+
+function findModalOrder() {
+  const code = modalOrderCode.value.trim().toUpperCase();
+  const found = cartStore.getOrder(code);
+  if (found) {
+    modalOrder.value = found;
+    modalOrderFound.value = true;
+    modalError.value = false;
+  } else {
+    modalError.value = true;
+    modalOrderFound.value = false;
+  }
+}
+function statusIcon(status) {
+  const map = { preparing: 'inventory_2', shipped: 'local_shipping', delivered: 'home' };
+  return map[status] || 'receipt_long';
+}
+function statusLabel(status) {
+  const map = { preparing: 'En preparación', shipped: 'En camino', delivered: 'Entregado' };
+  return map[status] || 'Pedido recibido';
+}
+function fmt(val) {
+  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(val);
+}
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+}
 
 const activeFilters = ref({ tipo: 'todos', edad: 'todos', precio: 'todos' });
 
@@ -525,4 +631,110 @@ onUnmounted(() => {
   .products-grid { grid-template-columns: repeat(2,1fr); gap: 14px; }
 }
 @media (max-width: 430px) { .products-grid { grid-template-columns: 1fr; } }
+
+/* ── ORDER MODAL & UPDATED CTA ─────────────────────────────── */
+.cta-actions { display: flex; gap: .6rem; flex-wrap: wrap; }
+.cta-btn-primary {
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: #c58cf2; color: white; padding: .75rem 1.5rem;
+  border-radius: 5rem; font-family: 'Fredoka', sans-serif;
+  font-size: .95rem; font-weight: 700; border: none; cursor: pointer;
+  text-decoration: none; transition: all .22s; white-space: nowrap;
+  box-shadow: 0 4px 15px rgba(197,140,242,.3);
+}
+.cta-btn-primary:hover { background: #b373e6; transform: translateY(-1px); }
+.cta-btn-secondary {
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: white; color: var(--text-blue);
+  border: 1.5px solid rgba(197,140,242,.4);
+  padding: .7rem 1.3rem; border-radius: 5rem;
+  font-family: 'Fredoka', sans-serif;
+  font-size: .95rem; font-weight: 700;
+  text-decoration: none; transition: all .22s; white-space: nowrap;
+}
+.cta-btn-secondary:hover { border-color: #c58cf2; background: #faf7ff; }
+.cta-btn-secondary .material-symbols-outlined { font-size: 1.1rem; }
+
+.order-modal-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(26,91,130,.45); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+}
+.order-modal {
+  background: white; border-radius: 1.5rem; padding: 2rem;
+  width: 100%; max-width: 26rem;
+  box-shadow: 0 20px 60px rgba(26,91,130,.18);
+  border: 1.5px solid rgba(197,140,242,.2);
+}
+.omodal-header { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem; }
+.omodal-icon { font-size: 2rem; color: #c58cf2; flex-shrink: 0; }
+.omodal-header h3 { font-family: 'Fredoka', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--text-blue); margin: 0 0 .2rem; }
+.omodal-header p { font-size: .85rem; opacity: .65; margin: 0; }
+.omodal-close {
+  margin-left: auto; background: none; border: none; cursor: pointer;
+  color: var(--text-blue); opacity: .5; display: flex; padding: .2rem;
+  transition: opacity .2s;
+}
+.omodal-close:hover { opacity: 1; }
+.omodal-input-wrap { display: flex; gap: .5rem; margin-bottom: .75rem; }
+.omodal-input {
+  flex: 1; font-family: 'Fredoka', sans-serif; font-size: 1.1rem; font-weight: 700;
+  text-align: center; letter-spacing: .08em; text-transform: uppercase;
+  padding: .7rem 1rem; border-radius: .75rem;
+  border: 1.5px solid rgba(197,140,242,.3); background: #fcf8ff;
+  color: var(--text-blue); outline: none; transition: all .22s;
+}
+.omodal-input:focus { border-color: #c58cf2; box-shadow: 0 0 0 3px rgba(197,140,242,.12); }
+.omodal-search-btn {
+  background: #c58cf2; color: white; border: none;
+  border-radius: .75rem; padding: .7rem 1rem; cursor: pointer;
+  display: flex; align-items: center; transition: background .2s;
+}
+.omodal-search-btn:hover { background: #b373e6; }
+.omodal-hint { font-size: .8rem; opacity: .6; }
+.omodal-error {
+  display: flex; flex-direction: column; align-items: center; gap: .75rem;
+  color: #e53e3e; font-size: .9rem; text-align: center; padding: .5rem 0;
+}
+.omodal-error .material-symbols-outlined { font-size: 2.5rem; }
+.omodal-retry {
+  background: none; border: 1.5px solid rgba(229,62,62,.3);
+  color: #e53e3e; border-radius: 5rem; padding: .4rem 1rem;
+  font-family: 'Fredoka', sans-serif; font-size: .9rem; cursor: pointer;
+}
+.omodal-status-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.omodal-status-badge {
+  display: inline-flex; align-items: center; gap: .4rem;
+  border-radius: 5rem; padding: .3rem .9rem;
+  font-size: .85rem; font-weight: 700;
+  background: rgba(197,140,242,.12); color: #7c3aed;
+  border: 1px solid rgba(197,140,242,.3);
+}
+.omodal-status-badge.delivered { background: rgba(52,211,153,.12); color: #059669; border-color: rgba(52,211,153,.3); }
+.omodal-order-id { font-size: .85rem; font-weight: 700; color: #c58cf2; }
+.omodal-meta { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.omodal-meta > div { display: flex; flex-direction: column; gap: .1rem; }
+.omodal-meta small { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; opacity: .55; }
+.omodal-meta strong { font-size: .95rem; }
+.omodal-meta .green { color: #059669; }
+.omodal-actions { display: flex; flex-direction: column; gap: .6rem; }
+.omodal-full-btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: #c58cf2; color: white; padding: .8rem 1.25rem;
+  border-radius: 5rem; font-family: 'Fredoka', sans-serif;
+  font-size: .95rem; font-weight: 700; text-decoration: none;
+  transition: all .22s; justify-content: center;
+}
+.omodal-full-btn:hover { background: #b373e6; }
+.omodal-dev-btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: white; color: var(--text-blue);
+  border: 1.5px solid rgba(197,140,242,.35); padding: .75rem 1.25rem;
+  border-radius: 5rem; font-family: 'Fredoka', sans-serif;
+  font-size: .95rem; font-weight: 700; text-decoration: none;
+  transition: all .22s; justify-content: center;
+}
+.omodal-dev-btn:hover { background: #faf7ff; border-color: #c58cf2; }
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity .25s; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 </style>

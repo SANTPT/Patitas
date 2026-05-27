@@ -171,6 +171,11 @@ const openDetail = (resource) => {
           </div>
         </div>
       </div>
+      <div class="header-wave-bottom">
+        <svg viewBox="0 0 1440 56" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <path d="M0 28C480 56 960 0 1440 28L1440 56L0 56Z" fill="var(--page-bg, #f0f8ff)"/>
+        </svg>
+      </div>
     </header>
 
     <!-- Sección principal de contenido -->
@@ -248,9 +253,24 @@ const openDetail = (resource) => {
   background-image: url('../assets/fondo_azul.png');
   background-size: cover;
   background-position: center;
-  padding: 4.5rem 0 3.5rem;
+  position: relative;
+  padding: 4.5rem 0 5.5rem;
   text-align: center;
-  border-bottom: 1px solid rgba(26, 91, 130, 0.05);
+}
+
+.header-wave-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3.11rem;
+  z-index: 2;
+}
+
+.header-wave-bottom svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .page-title {

@@ -80,13 +80,45 @@ async function handleLike() {
     window.dispatchEvent(event);
   }
 }
+
+// Generar Avatar SVG estético de forma dinámica a partir de las iniciales de un nombre
+function getAvatarFallback(name) {
+  const colors = [
+    '#c58cf2', // Morado patitas
+    '#5bbfd6', // Azul patitas
+    '#f6ad55', // Naranja
+    '#fc8181', // Rosa
+    '#4fd1c5', // Cerceta
+    '#68d391', // Verde
+    '#63b3ed'  // Celeste
+  ];
+  
+  const parts = (name || 'P').trim().split(/\s+/);
+  const initials = parts.length > 1 
+    ? (parts[0][0] + parts[1][0]).toUpperCase()
+    : parts[0].substring(0, Math.min(2, parts[0].length)).toUpperCase();
+    
+  let hash = 0;
+  for (let i = 0; i < (name || '').length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const colorIndex = Math.abs(hash) % colors.length;
+  const color = colors[colorIndex];
+  
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <circle cx='50' cy='50' r='50' fill='${color.replace('#', '%23')}'/>
+    <text x='50%' y='55%' font-family='sans-serif' font-size='40' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='middle'>${initials}</text>
+  </svg>`;
+  
+  return `data:image/svg+xml;utf8,${svg}`;
+}
 </script>
 
 <template>
   <article class="post-card">
     <!-- Header -->
     <div class="post-header">
-      <img :src="post.author.avatar" :alt="post.author.name" class="author-avatar" />
+      <img :src="post.author.avatar || getAvatarFallback(post.author.name)" :alt="post.author.name" class="author-avatar" />
       <div class="author-info">
         <h4 class="author-name">{{ post.author.name }}</h4>
         <span class="author-role">{{ post.author.role }}</span>
@@ -287,6 +319,10 @@ async function handleLike() {
 /* Like activo */
 .like-btn.is-liked {
   color: #e53e3e;
+}
+
+.like-btn.is-liked .icon {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 48;
 }
 
 .like-btn.is-liked:hover {
