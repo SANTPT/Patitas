@@ -4,7 +4,7 @@
     <!-- HERO -->
     <header class="page-header">
       <div class="header-content container">
-        <span class="header-tag"></span>
+        <span class="header-tag">🛍️ Tienda Patitas</span>
         <h1 class="page-title">Juguetes y Recursos para cada patita</h1>
         <p class="page-subtitle">Material especializado recomendado por terapeutas para potenciar el desarrollo en casa.</p>
       </div>
@@ -131,7 +131,7 @@
           </div>
         </div>
         <div class="cta-actions">
-          <button class="cta-btn-primary" @click="orderModalOpen = true">
+          <button class="cta-btn-primary" @click="openModal">
             <span class="material-symbols-outlined">local_shipping</span>
             Estado del pedido
           </button>
@@ -142,68 +142,196 @@
         </div>
       </div>
 
-    <!-- Modal: Rastreo rápido de pedido -->
+    <!-- Modal: Estado de pedidos -->
     <Transition name="modal-fade">
-      <div v-if="orderModalOpen" class="order-modal-overlay" @click.self="orderModalOpen = false">
-        <div class="order-modal">
+      <div v-if="orderModalOpen" class="order-modal-overlay" @click.self="closeModal">
+        <div class="order-modal" :class="{ wide: modalView === 'detail' || modalView === 'orders' }">
+
+          <!-- Header -->
           <div class="omodal-header">
             <span class="material-symbols-outlined omodal-icon">local_shipping</span>
             <div>
-              <h3>Consultar estado de pedido</h3>
-              <p>Introduce el código de tu pedido (PT-XXXXX)</p>
+              <h3>{{ modalHeaderTitle }}</h3>
+              <p>{{ modalHeaderSub }}</p>
             </div>
-            <button class="omodal-close" @click="orderModalOpen = false" aria-label="Cerrar">
+            <button class="omodal-close" @click="closeModal" aria-label="Cerrar">
               <span class="material-symbols-outlined">close</span>
             </button>
           </div>
 
-          <div v-if="!modalOrderFound && !modalError" class="omodal-search">
-            <div class="omodal-input-wrap">
+          <!-- VISTA: Lista de pedidos del usuario logueado -->
+          <div v-if="modalView === 'orders'" class="omodal-orders-list">
+            <div v-if="userOrders.length === 0" class="omodal-empty">
+              <span class="material-symbols-outlined">shopping_bag</span>
+              <p>Aún no tienes pedidos realizados.</p>
+              <button class="omodal-retry" @click="closeModal">Cerrar</button>
+            </div>
+            <div v-else>
+              <div
+                v-for="ord in userOrders"
+                :key="ord.id"
+                class="omodal-order-row"
+                @click="openOrderDetail(ord)"
+              >
+                <div class="omodal-row-left">
+                  <div class="omodal-row-imgs">
+                    <img v-for="item in ord.items.slice(0,3)" :key="item.productId" :src="item.image" :alt="item.name" />
+                  </div>
+                  <div class="omodal-row-info">
+                    <span class="omodal-row-id">{{ ord.id }}</span>
+                    <span class="omodal-row-date">{{ fmtShort(ord.createdAt) }} · {{ fmt(ord.total) }}</span>
+                    <span class="omodal-row-products">{{ ord.items.map(i => i.name).join(', ') }}</span>
+                  </div>
+                </div>
+                <div class="omodal-row-right">
+                  <span class="omodal-chip" :class="'chip-' + ord.status">
+                    <span class="material-symbols-outlined">{{ statusIcon(ord.status) }}</span>
+                    {{ statusLabel(ord.status) }}
+                  </span>
+                  <span class="material-symbols-outlined omodal-arrow">chevron_right</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- VISTA: Búsqueda por código (invitado) -->
+          <div v-if="modalView === 'search'" class="omodal-search">
+            <div class="omodal-input-wrap" :class="{ error: modalError }">
+              <span class="material-symbols-outlined omodal-prefix">receipt_long</span>
               <input
                 v-model="modalOrderCode"
                 type="text"
                 placeholder="PT-XXXXX"
                 class="omodal-input"
                 @keyup.enter="findModalOrder"
+                @input="modalError = false"
                 autocomplete="off"
               />
-              <button class="omodal-search-btn" @click="findModalOrder">
+              <button class="omodal-search-btn" @click="findModalOrder" :disabled="!modalOrderCode.trim()">
                 <span class="material-symbols-outlined">search</span>
               </button>
             </div>
-            <p class="omodal-hint">El código lo encontrarás en el email de confirmación de tu compra.</p>
+            <p v-if="modalError" class="omodal-error-msg">
+              <span class="material-symbols-outlined">error</span>
+              Código no encontrado. Comprueba que lo has escrito correctamente.
+            </p>
+            <p class="omodal-hint">Encuéntralo en el email de confirmación de tu compra.</p>
           </div>
 
-          <div v-if="modalError" class="omodal-error">
-            <span class="material-symbols-outlined">error</span>
-            Código no encontrado. Comprueba que lo has escrito correctamente.
-            <button class="omodal-retry" @click="modalError = false; modalOrderCode = ''">Intentar de nuevo</button>
-          </div>
+          <!-- VISTA: Detalle de un pedido concreto -->
+          <div v-if="modalView === 'detail' && modalOrder" class="omodal-detail">
+            <!-- Botón volver -->
+            <button v-if="authStore.isAuthenticated" class="omodal-back" @click="modalView = 'orders'">
+              <span class="material-symbols-outlined">arrow_back</span>
+              Mis pedidos
+            </button>
 
-          <div v-if="modalOrderFound" class="omodal-result">
-            <div class="omodal-status-row">
-              <div class="omodal-status-badge" :class="modalOrder.status">
+            <!-- Estado general del pedido -->
+            <div class="omodal-detail-header">
+              <div class="omodal-chip large" :class="'chip-' + modalOrder.status">
                 <span class="material-symbols-outlined">{{ statusIcon(modalOrder.status) }}</span>
                 {{ statusLabel(modalOrder.status) }}
               </div>
-              <span class="omodal-order-id">{{ modalOrder.id }}</span>
+              <div class="omodal-detail-meta">
+                <span class="omodal-row-id">{{ modalOrder.id }}</span>
+                <span class="omodal-row-date">{{ fmtDate(modalOrder.createdAt) }} · Entrega est. <strong class="green">{{ fmtShort(modalOrder.estimatedDelivery) }}</strong></span>
+              </div>
             </div>
-            <div class="omodal-meta">
-              <div><small>Fecha</small><strong>{{ fmtDate(modalOrder.createdAt) }}</strong></div>
-              <div><small>Entrega estimada</small><strong class="green">{{ fmtDate(modalOrder.estimatedDelivery) }}</strong></div>
-              <div><small>Total</small><strong>{{ fmt(modalOrder.total) }}</strong></div>
+
+            <!-- Timeline compacto -->
+            <div class="omodal-timeline">
+              <div v-for="(st, i) in stages" :key="i" class="omodal-tl-item" :class="{ done: stageIndex(modalOrder) >= i, current: stageIndex(modalOrder) === i }">
+                <div class="omodal-tl-dot">
+                  <span class="material-symbols-outlined">{{ st.icon }}</span>
+                </div>
+                <div class="omodal-tl-connector" v-if="i < stages.length - 1"></div>
+                <span class="omodal-tl-label">{{ st.label }}</span>
+              </div>
             </div>
-            <div class="omodal-actions">
-              <RouterLink :to="{ name: 'pedido', params: { id: modalOrder.id } }" class="omodal-full-btn" @click="orderModalOpen = false">
+
+            <!-- Productos del pedido con acciones individuales -->
+            <div class="omodal-products-section">
+              <h4 class="omodal-section-title">Productos</h4>
+              <div class="omodal-product-list">
+                <div v-for="item in modalOrder.items" :key="item.productId" class="omodal-product-item">
+                  <img :src="item.image" :alt="item.name" />
+                  <div class="omodal-product-info">
+                    <span>{{ item.name }}</span>
+                    <small>×{{ item.quantity }} · {{ fmt(item.subtotal) }}</small>
+                  </div>
+                  <!-- Cancelar producto individual (solo si está en preparación) -->
+                  <button
+                    v-if="modalOrder.status === 'preparing'"
+                    class="omodal-cancel-item-btn"
+                    @click.stop="confirmCancelItem(item)"
+                    :title="'Cancelar ' + item.name"
+                  >
+                    <span class="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Acciones del pedido completo -->
+            <div class="omodal-detail-actions">
+              <!-- Cancelar pedido completo (solo si está en preparación) -->
+              <button
+                v-if="modalOrder.status === 'preparing'"
+                class="omodal-cancel-order-btn"
+                @click="confirmCancelOrder"
+              >
+                <span class="material-symbols-outlined">cancel</span>
+                Cancelar pedido completo
+              </button>
+
+              <RouterLink
+                :to="{ name: 'pedido', params: { id: modalOrder.id } }"
+                class="omodal-full-btn"
+                @click="closeModal"
+              >
                 <span class="material-symbols-outlined">open_in_new</span>
                 Ver detalle completo
               </RouterLink>
-              <RouterLink :to="{ name: 'devoluciones', query: { order: modalOrder.id, tab: 'devoluciones' } }" class="omodal-dev-btn" @click="orderModalOpen = false">
+
+              <RouterLink
+                v-if="modalOrder.status !== 'preparing'"
+                :to="{ name: 'devoluciones', query: { order: modalOrder.id } }"
+                class="omodal-dev-btn"
+                @click="closeModal"
+              >
                 <span class="material-symbols-outlined">assignment_return</span>
-                Solicitar cambio / devolución
+                Cambio / devolución
               </RouterLink>
             </div>
           </div>
+
+          <!-- VISTA: Confirmación de cancelación -->
+          <div v-if="modalView === 'cancel-confirm'" class="omodal-cancel-confirm">
+            <span class="material-symbols-outlined omodal-cancel-icon">warning</span>
+            <h4>{{ cancelTarget === 'order' ? '¿Cancelar el pedido completo?' : '¿Cancelar este producto?' }}</h4>
+            <p v-if="cancelTarget === 'order'">
+              Se cancelarán todos los productos del pedido <strong>{{ modalOrder?.id }}</strong> y recibirás el reembolso completo en 5–10 días laborales.
+            </p>
+            <p v-else>
+              Se cancelará <strong>{{ cancelItem?.name }}</strong> del pedido {{ modalOrder?.id }}. El resto del pedido seguirá en curso.
+            </p>
+            <div class="omodal-cancel-actions">
+              <button class="omodal-cancel-back" @click="modalView = 'detail'">Volver</button>
+              <button class="omodal-cancel-confirm-btn" @click="executeCancellation">
+                <span class="material-symbols-outlined">check</span>
+                Sí, cancelar
+              </button>
+            </div>
+          </div>
+
+          <!-- VISTA: Cancelación completada -->
+          <div v-if="modalView === 'cancel-done'" class="omodal-cancel-done">
+            <span class="material-symbols-outlined omodal-done-icon">task_alt</span>
+            <h4>Cancelación registrada</h4>
+            <p>Procesaremos el reembolso en 5–10 días laborales. Recibirás confirmación por email.</p>
+            <button class="omodal-full-btn" @click="closeModal">Cerrar</button>
+          </div>
+
         </div>
       </div>
     </Transition>
@@ -227,8 +355,10 @@ import { RouterLink } from 'vue-router';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard.vue';
 import { useCartStore } from '../stores/cart';
+import { useAuthStore } from '../stores/auth';
 
 const cartStore  = useCartStore();
+const authStore  = useAuthStore();
 const products   = ref([]);
 const isLoading  = ref(true);
 const searchQuery = ref('');
@@ -236,38 +366,124 @@ const searchFocused = ref(false);
 const toastVisible  = ref(false);
 const openFilter    = ref(null);
 
-// ── Modal rastreo de pedido
-const orderModalOpen   = ref(false);
-const modalOrderCode   = ref('');
-const modalOrderFound  = ref(false);
-const modalError       = ref(false);
-const modalOrder       = ref(null);
+// ── Modal de pedidos ──────────────────────────────────────
+const orderModalOpen = ref(false);
+const modalView      = ref('search'); // 'search'|'orders'|'detail'|'cancel-confirm'|'cancel-done'
+const modalOrderCode = ref('');
+const modalError     = ref(false);
+const modalOrder     = ref(null);
+const cancelTarget   = ref('order');
+const cancelItem     = ref(null);
+
+const userOrders = computed(() =>
+  authStore.user?.id ? cartStore.getOrdersByUser(authStore.user.id) : []
+);
+
+const modalHeaderTitle = computed(() => {
+  const v = modalView.value;
+  if (v === 'orders') return 'Mis pedidos';
+  if (v === 'detail') return 'Estado del pedido';
+  if (v === 'cancel-confirm') return 'Confirmar cancelación';
+  if (v === 'cancel-done') return 'Cancelación registrada';
+  return 'Consultar pedido';
+});
+const modalHeaderSub = computed(() => {
+  if (modalView.value === 'orders') return `${userOrders.value.length} pedido(s) realizados`;
+  if (modalView.value === 'detail') return modalOrder.value?.id || '';
+  return 'Introduce tu código de pedido';
+});
+
+function openModal() {
+  if (authStore.isAuthenticated) {
+    modalView.value = 'orders';
+  } else {
+    modalView.value = 'search';
+  }
+  modalOrderCode.value = '';
+  modalError.value = false;
+  orderModalOpen.value = true;
+}
+
+function closeModal() {
+  orderModalOpen.value = false;
+  setTimeout(() => {
+    modalView.value = authStore.isAuthenticated ? 'orders' : 'search';
+    modalOrderCode.value = '';
+    modalError.value = false;
+    cancelItem.value = null;
+  }, 300);
+}
 
 function findModalOrder() {
   const code = modalOrderCode.value.trim().toUpperCase();
   const found = cartStore.getOrder(code);
   if (found) {
     modalOrder.value = found;
-    modalOrderFound.value = true;
+    modalView.value = 'detail';
     modalError.value = false;
   } else {
     modalError.value = true;
-    modalOrderFound.value = false;
   }
 }
+
+function openOrderDetail(ord) {
+  modalOrder.value = ord;
+  modalView.value = 'detail';
+}
+
+function confirmCancelOrder() {
+  cancelTarget.value = 'order';
+  cancelItem.value = null;
+  modalView.value = 'cancel-confirm';
+}
+
+function confirmCancelItem(item) {
+  cancelTarget.value = 'item';
+  cancelItem.value = item;
+  modalView.value = 'cancel-confirm';
+}
+
+function executeCancellation() {
+  const ord = cartStore.orders.find(o => o.id === modalOrder.value.id);
+  if (!ord) return;
+  if (cancelTarget.value === 'order') {
+    ord.status = 'cancelled';
+  } else if (cancelTarget.value === 'item' && cancelItem.value) {
+    ord.items = ord.items.filter(i => i.productId !== cancelItem.value.productId);
+    if (ord.items.length === 0) ord.status = 'cancelled';
+    else ord.total = +ord.items.reduce((a, i) => a + i.subtotal, 0).toFixed(2);
+    modalOrder.value = JSON.parse(JSON.stringify(ord));
+  }
+  localStorage.setItem('patitas_orders', JSON.stringify(cartStore.orders));
+  modalView.value = 'cancel-done';
+}
+
+const stages = [
+  { icon: 'receipt_long',   label: 'Recibido'   },
+  { icon: 'inventory_2',    label: 'Preparando' },
+  { icon: 'local_shipping', label: 'En camino'  },
+  { icon: 'home',           label: 'Entregado'  },
+];
+
+function stageIndex(ord) {
+  return { preparing: 1, shipped: 2, delivered: 3, cancelled: 0 }[ord?.status] ?? 0;
+}
 function statusIcon(status) {
-  const map = { preparing: 'inventory_2', shipped: 'local_shipping', delivered: 'home' };
-  return map[status] || 'receipt_long';
+  return { preparing: 'inventory_2', shipped: 'local_shipping', delivered: 'home', cancelled: 'cancel' }[status] || 'receipt_long';
 }
 function statusLabel(status) {
-  const map = { preparing: 'En preparación', shipped: 'En camino', delivered: 'Entregado' };
-  return map[status] || 'Pedido recibido';
+  return { preparing: 'En preparación', shipped: 'En camino', delivered: 'Entregado', cancelled: 'Cancelado' }[status] || 'Recibido';
 }
 function fmt(val) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(val);
+  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(val ?? 0);
 }
 function fmtDate(iso) {
+  if (!iso) return '—';
   return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+function fmtShort(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 const activeFilters = ref({ tipo: 'todos', edad: 'todos', precio: 'todos' });
@@ -655,6 +871,8 @@ onUnmounted(() => {
 .cta-btn-secondary:hover { border-color: #c58cf2; background: #faf7ff; }
 .cta-btn-secondary .material-symbols-outlined { font-size: 1.1rem; }
 
+
+/* ── MODAL MEJORADO ─────────────────────────────────────── */
 .order-modal-overlay {
   position: fixed; inset: 0; z-index: 500;
   background: rgba(26,91,130,.45); backdrop-filter: blur(4px);
@@ -665,76 +883,116 @@ onUnmounted(() => {
   width: 100%; max-width: 26rem;
   box-shadow: 0 20px 60px rgba(26,91,130,.18);
   border: 1.5px solid rgba(197,140,242,.2);
+  max-height: 90vh; overflow-y: auto;
+  transition: max-width .3s ease;
 }
+.order-modal.wide { max-width: 34rem; }
 .omodal-header { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem; }
 .omodal-icon { font-size: 2rem; color: #c58cf2; flex-shrink: 0; }
 .omodal-header h3 { font-family: 'Fredoka', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--text-blue); margin: 0 0 .2rem; }
-.omodal-header p { font-size: .85rem; opacity: .65; margin: 0; }
-.omodal-close {
-  margin-left: auto; background: none; border: none; cursor: pointer;
-  color: var(--text-blue); opacity: .5; display: flex; padding: .2rem;
-  transition: opacity .2s;
-}
+.omodal-header p { font-size: .85rem; opacity: .65; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+.omodal-close { margin-left: auto; background: none; border: none; cursor: pointer; color: var(--text-blue); opacity: .5; display: flex; padding: .2rem; transition: opacity .2s; }
 .omodal-close:hover { opacity: 1; }
-.omodal-input-wrap { display: flex; gap: .5rem; margin-bottom: .75rem; }
-.omodal-input {
-  flex: 1; font-family: 'Fredoka', sans-serif; font-size: 1.1rem; font-weight: 700;
-  text-align: center; letter-spacing: .08em; text-transform: uppercase;
-  padding: .7rem 1rem; border-radius: .75rem;
-  border: 1.5px solid rgba(197,140,242,.3); background: #fcf8ff;
-  color: var(--text-blue); outline: none; transition: all .22s;
-}
-.omodal-input:focus { border-color: #c58cf2; box-shadow: 0 0 0 3px rgba(197,140,242,.12); }
-.omodal-search-btn {
-  background: #c58cf2; color: white; border: none;
-  border-radius: .75rem; padding: .7rem 1rem; cursor: pointer;
-  display: flex; align-items: center; transition: background .2s;
-}
-.omodal-search-btn:hover { background: #b373e6; }
-.omodal-hint { font-size: .8rem; opacity: .6; }
-.omodal-error {
-  display: flex; flex-direction: column; align-items: center; gap: .75rem;
-  color: #e53e3e; font-size: .9rem; text-align: center; padding: .5rem 0;
-}
-.omodal-error .material-symbols-outlined { font-size: 2.5rem; }
-.omodal-retry {
-  background: none; border: 1.5px solid rgba(229,62,62,.3);
-  color: #e53e3e; border-radius: 5rem; padding: .4rem 1rem;
-  font-family: 'Fredoka', sans-serif; font-size: .9rem; cursor: pointer;
-}
-.omodal-status-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
-.omodal-status-badge {
-  display: inline-flex; align-items: center; gap: .4rem;
-  border-radius: 5rem; padding: .3rem .9rem;
-  font-size: .85rem; font-weight: 700;
-  background: rgba(197,140,242,.12); color: #7c3aed;
-  border: 1px solid rgba(197,140,242,.3);
-}
-.omodal-status-badge.delivered { background: rgba(52,211,153,.12); color: #059669; border-color: rgba(52,211,153,.3); }
-.omodal-order-id { font-size: .85rem; font-weight: 700; color: #c58cf2; }
-.omodal-meta { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
-.omodal-meta > div { display: flex; flex-direction: column; gap: .1rem; }
-.omodal-meta small { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; opacity: .55; }
-.omodal-meta strong { font-size: .95rem; }
-.omodal-meta .green { color: #059669; }
-.omodal-actions { display: flex; flex-direction: column; gap: .6rem; }
-.omodal-full-btn {
-  display: inline-flex; align-items: center; gap: .5rem;
-  background: #c58cf2; color: white; padding: .8rem 1.25rem;
-  border-radius: 5rem; font-family: 'Fredoka', sans-serif;
-  font-size: .95rem; font-weight: 700; text-decoration: none;
-  transition: all .22s; justify-content: center;
-}
+/* Lista de pedidos */
+.omodal-orders-list { display: flex; flex-direction: column; gap: .5rem; }
+.omodal-empty { display: flex; flex-direction: column; align-items: center; gap: .75rem; padding: 1.5rem 0; text-align: center; color: #1a5b82; }
+.omodal-empty .material-symbols-outlined { font-size: 2.5rem; color: #c58cf2; opacity: .5; }
+.omodal-empty p { font-size: .9rem; opacity: .7; margin: 0; }
+.omodal-order-row { display: flex; align-items: center; gap: .75rem; padding: .85rem 1rem; border-radius: .9rem; border: 1.5px solid rgba(26,91,130,.08); background: #f9fafb; cursor: pointer; transition: all .2s; }
+.omodal-order-row:hover { border-color: rgba(197,140,242,.4); background: #fdf9ff; transform: translateY(-1px); }
+.omodal-row-left { display: flex; align-items: center; gap: .6rem; flex: 1; min-width: 0; }
+.omodal-row-imgs { display: flex; }
+.omodal-row-imgs img { width: 2.2rem; height: 2.2rem; object-fit: cover; border-radius: .4rem; border: 1.5px solid white; margin-right: -6px; box-shadow: 0 1px 4px rgba(0,0,0,.1); flex-shrink: 0; }
+.omodal-row-imgs img:last-child { margin-right: 0; }
+.omodal-row-info { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.omodal-row-id { font-size: .88rem; font-weight: 700; color: #c58cf2; }
+.omodal-row-date { font-size: .75rem; opacity: .6; }
+.omodal-row-products { font-size: .75rem; opacity: .55; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+.omodal-row-right { display: flex; align-items: center; gap: .4rem; flex-shrink: 0; }
+.omodal-arrow { font-size: 1.1rem; opacity: .35; }
+/* Status chips */
+.omodal-chip { display: inline-flex; align-items: center; gap: .3rem; border-radius: 5rem; padding: .2rem .75rem; font-size: .75rem; font-weight: 700; white-space: nowrap; }
+.omodal-chip .material-symbols-outlined { font-size: .85rem; }
+.omodal-chip.large { padding: .35rem 1rem; font-size: .88rem; }
+.omodal-chip.large .material-symbols-outlined { font-size: 1rem; }
+.chip-preparing { background: rgba(245,158,11,.12); color: #b45309; border: 1px solid rgba(245,158,11,.3); }
+.chip-shipped   { background: rgba(59,130,246,.1);  color: #1d4ed8; border: 1px solid rgba(59,130,246,.25); }
+.chip-delivered { background: rgba(52,211,153,.12); color: #059669; border: 1px solid rgba(52,211,153,.3); }
+.chip-cancelled { background: rgba(229,62,62,.1);   color: #e53e3e; border: 1px solid rgba(229,62,62,.25); }
+/* Search */
+.omodal-search { display: flex; flex-direction: column; gap: .6rem; }
+.omodal-input-wrap { display: flex; align-items: center; gap: .4rem; background: #f7f9fc; border: 2px solid rgba(26,91,130,.15); border-radius: 1rem; padding: .4rem .4rem .4rem .85rem; transition: all .22s; }
+.omodal-input-wrap:focus-within { border-color: #c58cf2; background: white; box-shadow: 0 0 0 3px rgba(197,140,242,.12); }
+.omodal-input-wrap.error { border-color: #fc8181; }
+.omodal-prefix { font-size: 1.2rem; color: #c58cf2; flex-shrink: 0; }
+.omodal-input { flex: 1; background: transparent; border: none; outline: none; font-family: 'Fredoka', sans-serif; font-size: 1.1rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-blue); }
+.omodal-input::placeholder { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: .95rem; color: rgba(26,91,130,.4); }
+.omodal-search-btn { background: #c58cf2; color: white; border: none; border-radius: .7rem; padding: .6rem 1rem; cursor: pointer; display: flex; align-items: center; transition: background .2s; flex-shrink: 0; }
+.omodal-search-btn:hover:not(:disabled) { background: #b373e6; }
+.omodal-search-btn:disabled { opacity: .4; cursor: not-allowed; }
+.omodal-error-msg { display: flex; align-items: center; gap: .4rem; color: #e53e3e; font-size: .85rem; }
+.omodal-hint { font-size: .8rem; opacity: .6; margin: 0; }
+/* Detalle */
+.omodal-back { display: inline-flex; align-items: center; gap: .3rem; background: none; border: 1px solid rgba(26,91,130,.15); border-radius: 5rem; padding: .3rem .85rem; font-family: 'Fredoka', sans-serif; font-size: .85rem; font-weight: 600; color: var(--text-blue); cursor: pointer; margin-bottom: 1rem; opacity: .7; transition: all .2s; }
+.omodal-back:hover { opacity: 1; border-color: #c58cf2; }
+.omodal-back .material-symbols-outlined { font-size: 1rem; }
+.omodal-detail-header { display: flex; align-items: center; gap: .85rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.omodal-detail-meta { display: flex; flex-direction: column; gap: .15rem; }
+.green { color: #059669; }
+/* Timeline */
+.omodal-timeline { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.25rem; position: relative; }
+.omodal-tl-item { display: flex; flex-direction: column; align-items: center; gap: .3rem; flex: 1; position: relative; }
+.omodal-tl-dot { width: 2rem; height: 2rem; border-radius: 50%; background: #f0f4f8; border: 2px solid #e2e8f0; display: flex; align-items: center; justify-content: center; transition: all .3s; z-index: 1; }
+.omodal-tl-dot .material-symbols-outlined { font-size: 1rem; color: #94a3b8; }
+.omodal-tl-item.done .omodal-tl-dot { background: #d1fae5; border-color: #34d399; }
+.omodal-tl-item.done .omodal-tl-dot .material-symbols-outlined { color: #059669; }
+.omodal-tl-item.current .omodal-tl-dot { background: #ede9fe; border-color: #c58cf2; }
+.omodal-tl-item.current .omodal-tl-dot .material-symbols-outlined { color: #c58cf2; }
+.omodal-tl-connector { position: absolute; top: 1rem; left: 50%; width: 100%; height: 2px; background: #e2e8f0; z-index: 0; }
+.omodal-tl-item.done .omodal-tl-connector { background: #34d399; }
+.omodal-tl-label { font-size: .7rem; font-weight: 600; opacity: .65; text-align: center; }
+.omodal-tl-item.current .omodal-tl-label { color: #c58cf2; opacity: 1; }
+.omodal-tl-item.done .omodal-tl-label { color: #059669; opacity: .9; }
+/* Productos */
+.omodal-section-title { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; opacity: .55; margin-bottom: .6rem; }
+.omodal-product-list { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.1rem; }
+.omodal-product-item { display: flex; align-items: center; gap: .7rem; background: #f9fafb; border-radius: .75rem; padding: .6rem .8rem; }
+.omodal-product-item img { width: 2.6rem; height: 2.6rem; object-fit: cover; border-radius: .5rem; flex-shrink: 0; border: 1px solid rgba(0,0,0,.06); }
+.omodal-product-info { flex: 1; display: flex; flex-direction: column; gap: .05rem; }
+.omodal-product-info span { font-size: .88rem; font-weight: 600; }
+.omodal-product-info small { font-size: .75rem; opacity: .6; }
+.omodal-cancel-item-btn { background: none; border: 1.5px solid rgba(229,62,62,.25); border-radius: 50%; width: 1.6rem; height: 1.6rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #e53e3e; flex-shrink: 0; transition: all .2s; }
+.omodal-cancel-item-btn:hover { background: rgba(229,62,62,.08); border-color: #e53e3e; }
+.omodal-cancel-item-btn .material-symbols-outlined { font-size: .9rem; }
+/* Acciones */
+.omodal-detail-actions { display: flex; flex-direction: column; gap: .55rem; }
+.omodal-cancel-order-btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; background: rgba(229,62,62,.07); color: #e53e3e; border: 1.5px solid rgba(229,62,62,.25); border-radius: 5rem; padding: .65rem 1.1rem; font-family: 'Fredoka', sans-serif; font-size: .92rem; font-weight: 700; cursor: pointer; transition: all .2s; }
+.omodal-cancel-order-btn:hover { background: rgba(229,62,62,.13); border-color: #e53e3e; }
+.omodal-cancel-order-btn .material-symbols-outlined { font-size: 1rem; }
+.omodal-full-btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; background: #c58cf2; color: white; padding: .75rem 1.25rem; border-radius: 5rem; font-family: 'Fredoka', sans-serif; font-size: .92rem; font-weight: 700; text-decoration: none; border: none; cursor: pointer; transition: all .22s; }
 .omodal-full-btn:hover { background: #b373e6; }
-.omodal-dev-btn {
-  display: inline-flex; align-items: center; gap: .5rem;
-  background: white; color: var(--text-blue);
-  border: 1.5px solid rgba(197,140,242,.35); padding: .75rem 1.25rem;
-  border-radius: 5rem; font-family: 'Fredoka', sans-serif;
-  font-size: .95rem; font-weight: 700; text-decoration: none;
-  transition: all .22s; justify-content: center;
-}
+.omodal-dev-btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; background: white; color: var(--text-blue); border: 1.5px solid rgba(197,140,242,.35); padding: .7rem 1.25rem; border-radius: 5rem; font-family: 'Fredoka', sans-serif; font-size: .92rem; font-weight: 700; text-decoration: none; transition: all .22s; }
 .omodal-dev-btn:hover { background: #faf7ff; border-color: #c58cf2; }
+/* Cancelación */
+.omodal-cancel-confirm { display: flex; flex-direction: column; align-items: center; gap: .75rem; text-align: center; padding: .5rem 0; }
+.omodal-cancel-icon { font-size: 3rem; color: #f59e0b; }
+.omodal-cancel-confirm h4 { font-size: 1.15rem; font-weight: 700; margin: 0; }
+.omodal-cancel-confirm p { font-size: .88rem; opacity: .75; line-height: 1.6; max-width: 22rem; margin: 0; }
+.omodal-cancel-actions { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; width: 100%; }
+.omodal-cancel-back { background: white; border: 1.5px solid rgba(26,91,130,.15); border-radius: 5rem; padding: .65rem 1.25rem; font-family: 'Fredoka', sans-serif; font-size: .92rem; font-weight: 700; color: var(--text-blue); cursor: pointer; transition: all .2s; }
+.omodal-cancel-back:hover { border-color: #c58cf2; background: #fdf9ff; }
+.omodal-cancel-confirm-btn { display: inline-flex; align-items: center; gap: .35rem; background: #e53e3e; color: white; border: none; border-radius: 5rem; padding: .65rem 1.4rem; font-family: 'Fredoka', sans-serif; font-size: .92rem; font-weight: 700; cursor: pointer; transition: all .2s; }
+.omodal-cancel-confirm-btn:hover { background: #c53030; }
+.omodal-cancel-confirm-btn .material-symbols-outlined { font-size: 1rem; }
+.omodal-cancel-done { display: flex; flex-direction: column; align-items: center; gap: .75rem; text-align: center; padding: .5rem 0; }
+.omodal-done-icon { font-size: 3rem; color: #059669; }
+.omodal-cancel-done h4 { font-size: 1.15rem; font-weight: 700; margin: 0; }
+.omodal-cancel-done p { font-size: .88rem; opacity: .75; line-height: 1.6; margin: 0; }
+/* Retry button reutilizado */
+.omodal-retry { background: none; border: 1.5px solid rgba(26,91,130,.2); color: var(--text-blue); border-radius: 5rem; padding: .4rem 1rem; font-family: 'Fredoka', sans-serif; font-size: .9rem; cursor: pointer; transition: all .2s; }
+.omodal-retry:hover { border-color: #c58cf2; }
+/* Transiciones */
 .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity .25s; }
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+
 </style>

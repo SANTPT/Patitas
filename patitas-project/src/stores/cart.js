@@ -25,7 +25,7 @@ export const useCartStore = defineStore('cart', () => {
   })());
 
   // ── Persistencia ──────────────────────────────────────────────────────────
-  const saveCart   = () => localStorage.setItem('patitas_cart',   JSON.stringify(items.value));
+  const saveCart = () => localStorage.setItem('patitas_cart', JSON.stringify(items.value));
   const saveOrders = () => localStorage.setItem('patitas_orders', JSON.stringify(orders.value));
 
   // ── Getters carrito ───────────────────────────────────────────────────────
@@ -66,8 +66,8 @@ export const useCartStore = defineStore('cart', () => {
           seen.add(key);
           result.push({
             ...item,
-            orderId:     order.id,
-            orderDate:   order.createdAt,
+            orderId: order.id,
+            orderDate: order.createdAt,
             orderStatus: order.status,
           });
         }
@@ -117,20 +117,20 @@ export const useCartStore = defineStore('cart', () => {
     }
 
     const order = {
-      id:               orderId,
-      createdAt:        now.toISOString(),
+      id: orderId,
+      createdAt: now.toISOString(),
       estimatedDelivery: estimated.toISOString(),
-      status:           'preparing',
+      status: 'preparing',
       shippingInfo,
       paymentMethod,
-      userId:           userId ? String(userId) : null,   // ← siempre string o null
+      userId: userId ? String(userId) : null,   // ← siempre string o null
       items: items.value.map(i => ({
         productId: i.product.id,
-        name:      i.product.name,
-        image:     i.product.image,
-        price:     i.product.price,
-        quantity:  i.quantity,
-        subtotal:  +(i.product.price * i.quantity).toFixed(2),
+        name: i.product.name,
+        image: i.product.image,
+        price: i.product.price,
+        quantity: i.quantity,
+        subtotal: +(i.product.price * i.quantity).toFixed(2),
       })),
       total: +totalPrice.value.toFixed(2),
     };
@@ -141,6 +141,9 @@ export const useCartStore = defineStore('cart', () => {
     return order;
   }
 
+  // Expose saveOrders for in-place mutations (cancel order, etc.)
+  function saveOrdersPublic() { saveOrders(); }
+
   return {
     // state
     items, orders,
@@ -150,5 +153,6 @@ export const useCartStore = defineStore('cart', () => {
     allOrders, getOrder, getOrdersByUser, getProductsByUser,
     // actions
     addItem, removeItem, updateQuantity, clearCart, placeOrder,
+    saveOrdersPublic,
   };
 });
