@@ -33,9 +33,9 @@
 
       <!-- Acciones -->
       <div class="header-actions">
-        <button class="icon-btn" aria-label="Buscar">
+        <!-- <button class="icon-btn" aria-label="Buscar">
           <span class="material-symbols-outlined">search</span>
-        </button>
+        </button> -->
         <button class="icon-btn cart-btn" aria-label="Carrito" @click="isCartOpen = true">
           <span class="material-symbols-outlined">shopping_cart</span>
           <span v-if="cartStore.totalItems > 0" class="cart-badge">{{ cartStore.totalItems }}</span>

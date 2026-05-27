@@ -324,10 +324,10 @@ const stats = ref([
 /* Video badge */
 .video-badge {
   position: absolute;
-  bottom: -2rem;
-  right: -2rem;
-  width: 7.5rem;
-  height: 7.5rem;
+  bottom: -1.7rem;
+  right: -1.7rem;
+  width: 6.2rem;
+  height: 6.2rem;
   border-radius: 50%;
   overflow: hidden;
   border: 6px solid white;
