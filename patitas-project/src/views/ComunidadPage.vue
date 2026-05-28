@@ -261,22 +261,25 @@
             </div>
           </div>
 
-          <!-- Banner CTA Inferior -->
-          <div class="bottom-cta-banner">
-            <h3 class="cta-title">¿Listo para conectar?</h3>
-            <p class="cta-desc">
-              Únete hoy a más de 5,000 familias que ya están compartiendo este viaje con nosotros. La membresía es gratuita.
-            </p>
-            <div class="cta-actions">
-              <button @click="handleAction('Crear cuenta')" class="btn-cta-primary">
-                Crear mi cuenta
-              </button>
-              <button @click="handleAction('Saber más')" class="btn-cta-secondary">
-                Saber más
-              </button>
-            </div>
-          </div>
         </main>
+      </div>
+
+      <!-- Banner CTA Inferior (Fuera del layout de columnas para ser más ancho) -->
+      <div v-if="!authStore.isAuthenticated" class="bottom-cta-banner-container">
+        <div class="bottom-cta-banner">
+          <h3 class="cta-title">¿Listo para conectar?</h3>
+          <p class="cta-desc">
+            Únete hoy a más de 5,000 familias que ya están compartiendo este viaje con nosotros. La membresía es gratuita.
+          </p>
+          <div class="cta-actions">
+            <button @click="handleAction('Crear cuenta')" class="btn-cta-primary">
+              Crear mi cuenta
+            </button>
+            <button @click="handleAction('Saber más')" class="btn-cta-secondary">
+              Saber más
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -979,6 +982,11 @@ onUnmounted(() => {
 
 .btn-explore-group .material-symbols-outlined {
   font-size: 0.95rem;
+}
+
+.bottom-cta-banner-container {
+  margin-top: 4rem;
+  width: 100%;
 }
 
 /* Bottom CTA Banner (Dark) */

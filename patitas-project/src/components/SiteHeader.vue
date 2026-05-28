@@ -43,10 +43,11 @@
 
         <!-- Botón dinámico según estado de sesión -->
         <template v-if="authStore.isAuthenticated">
-          <div class="user-pill">
-            <span class="user-avatar">{{ authStore.initials }}</span>
+          <div class="user-pill" style="cursor: pointer;" @click="router.push('/dashboard')">
+            <img v-if="authStore.user?.avatar" :src="authStore.user.avatar" class="user-avatar-img" alt="Avatar" />
+            <span v-else class="user-avatar">{{ authStore.initials }}</span>
             <span class="user-name">{{ authStore.displayName }}</span>
-            <button class="logout-btn" @click="authStore.logout()" aria-label="Cerrar sesión">
+            <button class="logout-btn" @click.stop="authStore.logout()" aria-label="Cerrar sesión">
               <span class="material-symbols-outlined">logout</span>
             </button>
           </div>
@@ -87,10 +88,11 @@
         <!-- Sección de Autenticación Móvil -->
         <li class="mobile-auth-item">
           <template v-if="authStore.isAuthenticated">
-            <div class="mobile-user-row">
-              <span class="user-avatar">{{ authStore.initials }}</span>
+            <div class="mobile-user-row" style="cursor: pointer;" @click="router.push('/dashboard'); menuOpen = false">
+              <img v-if="authStore.user?.avatar" :src="authStore.user.avatar" class="user-avatar-img" alt="Avatar" />
+              <span v-else class="user-avatar">{{ authStore.initials }}</span>
               <span class="user-name">{{ authStore.displayName }}</span>
-              <button class="mobile-logout-btn" @click="authStore.logout(); menuOpen = false" aria-label="Cerrar sesión">
+              <button class="mobile-logout-btn" @click.stop="authStore.logout(); menuOpen = false" aria-label="Cerrar sesión">
                 <span class="material-symbols-outlined">logout</span>
                 Cerrar Sesión
               </button>
@@ -420,6 +422,22 @@ onUnmounted(() => {
   padding: 0.28rem 0.67rem 0.28rem 0.28rem;
   box-shadow: var(--shadow-soft);
   transition: all 0.22s ease;
+}
+
+.user-avatar-img {
+  width: 1.78rem;
+  height: 1.78rem;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.mobile-user-row .user-avatar-img {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 .user-avatar {

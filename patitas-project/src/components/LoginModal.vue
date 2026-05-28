@@ -149,6 +149,17 @@ const route = useRoute();
 function checkRedirect() {
   if (route.query.redirect) {
     router.push(route.query.redirect);
+  } else {
+    const role = authStore.user?.role;
+    if (role === 'superadmin') {
+      router.push('/dashboard/superadmin');
+    } else if (role === 'admin_centro') {
+      router.push('/dashboard/admin-centro');
+    } else if (role === 'admin_profesional') {
+      router.push('/dashboard/admin-profesional');
+    } else {
+      router.push('/dashboard/usuario');
+    }
   }
 }
 

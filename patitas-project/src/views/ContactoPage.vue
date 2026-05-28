@@ -3,7 +3,6 @@
     <!-- Encabezado distintivo de la página con fondo azul y ola -->
     <header class="page-header">
       <div class="header-content container">
-        <span class="header-tag">✨ Conócenos más</span>
         <h1 class="page-title">Sobre Nosotros y Contacto</h1>
         <p class="page-subtitle">
           Descubre el equipo detrás de Patitas y ponte en contacto con nosotros. Estamos aquí para acompañar el camino de tu familia.
@@ -75,7 +74,7 @@
               
               <div class="info-items">
                 <div class="info-item">
-                  <span class="material-symbols-outlined icon">mail</span>
+                  <span class="material-symbols-outlined icon blue-bubble">mail</span>
                   <div class="info-text">
                     <strong>Correo Electrónico</strong>
                     <a href="mailto:hola@patitas.org">hola@patitas.org</a>
@@ -83,7 +82,7 @@
                 </div>
 
                 <div class="info-item">
-                  <span class="material-symbols-outlined icon">phone</span>
+                  <span class="material-symbols-outlined icon purple-bubble">phone</span>
                   <div class="info-text">
                     <strong>Teléfono de Soporte</strong>
                     <a href="tel:+34944000000">+34 944 000 000</a>
@@ -91,7 +90,7 @@
                 </div>
 
                 <div class="info-item">
-                  <span class="material-symbols-outlined icon">location_on</span>
+                  <span class="material-symbols-outlined icon pink-bubble">location_on</span>
                   <div class="info-text">
                     <strong>Oficina Central</strong>
                     <p>Gran Vía de Don Diego López de Haro, 48009 Bilbao, Bizkaia, España</p>
@@ -99,12 +98,18 @@
                 </div>
               </div>
 
-              <!-- MOCK MAP DESIGN -->
-              <div class="mock-map">
-                <div class="map-overlay">
-                  <span class="material-symbols-outlined map-pin">location_on</span>
-                  <div class="map-label">Patitas Bilbao</div>
-                </div>
+              <!-- MAPA REAL EMBEBIDO -->
+              <div class="map-container">
+                <iframe
+                  src="https://maps.google.com/maps?q=Gran%20V%C3%ADa%20de%20Don%20Diego%20L%C3%B3pez%20de%20Haro,%2048009%20Bilbao,%20Espa%C3%B1a&t=&z=16&ie=UTF8&iwloc=&output=embed"
+                  width="100%"
+                  height="100%"
+                  style="border:0;"
+                  allowfullscreen=""
+                  loading="lazy"
+                  referrerpolicy="no-referrer-when-downgrade"
+                  title="Ubicación Patitas Bilbao"
+                ></iframe>
               </div>
             </div>
           </div>
@@ -386,6 +391,12 @@ const handleSubmit = () => {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.info-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 35px rgba(26, 91, 130, 0.08);
 }
 
 .info-card h3 {
@@ -420,13 +431,26 @@ const handleSubmit = () => {
 
 .info-item .icon {
   font-size: 1.4rem;
-  color: var(--button-purple, #c58cf2);
-  background: rgba(197, 140, 242, 0.1);
   padding: 0.5rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.info-item .icon.blue-bubble {
+  color: #5bbfd6;
+  background: rgba(91, 191, 214, 0.1);
+}
+
+.info-item .icon.purple-bubble {
+  color: #c58cf2;
+  background: rgba(197, 140, 242, 0.1);
+}
+
+.info-item .icon.pink-bubble {
+  color: #fc8181;
+  background: rgba(252, 129, 129, 0.1);
 }
 
 .info-text {
@@ -453,59 +477,23 @@ const handleSubmit = () => {
   text-decoration: underline;
 }
 
-/* Mock Map design */
-.mock-map {
+/* Real Map Container */
+.map-container {
   width: 100%;
-  height: 10rem;
-  background: radial-gradient(circle, #edf7f6 20%, #e0f2fe 80%);
+  height: 20rem;
   border-radius: 1rem;
-  margin-top: auto;
+  margin-top: 1.5rem;
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(26, 91, 130, 0.1);
+  box-shadow: 0 4px 15px rgba(26, 91, 130, 0.05);
+  transition: all 0.3s ease;
 }
 
-.mock-map::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px);
-  background-size: 16px 16px;
-  opacity: 0.6;
-}
-
-.map-overlay {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.map-pin {
-  font-size: 2.2rem;
-  color: #fc8181;
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15));
-  animation: bounce 2s infinite;
-}
-
-@keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
-}
-
-.map-label {
-  background: white;
-  color: var(--text-blue, #1a5b82);
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 0.25rem 0.6rem;
-  border-radius: 5px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  margin-top: 0.25rem;
-  white-space: nowrap;
+.map-container:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(26, 91, 130, 0.12);
+  border-color: rgba(197, 140, 242, 0.3);
 }
 
 /* Formulario */
@@ -518,6 +506,12 @@ const handleSubmit = () => {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.contact-form:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 35px rgba(26, 91, 130, 0.08);
 }
 
 .form-group {

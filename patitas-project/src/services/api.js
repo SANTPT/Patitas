@@ -52,16 +52,86 @@ function getMockUsers() {
       id: 1,
       name: 'Padre Demo',
       email: 'demo@example.com',
-      password: 'password',
+      password: '123456',
       role: 'user',
       avatar: generateAvatarSvg('Padre Demo'),
       createdAt: '2026-05-26T08:00:00Z',
       savedResources: [1, 3],
+      status: 'active'
+    },
+    {
+      id: 2,
+      name: 'Super Admin',
+      email: 'superadmin@example.com',
+      password: 'password',
+      role: 'superadmin',
+      avatar: generateAvatarSvg('Super Admin'),
+      createdAt: '2026-05-26T08:00:00Z',
+      savedResources: [],
+      status: 'active'
+    },
+    {
+      id: 3,
+      name: 'Centro Admin',
+      email: 'centro@example.com',
+      password: 'password',
+      role: 'admin_centro',
+      centroId: 1,
+      status: 'active',
+      avatar: generateAvatarSvg('Centro Admin'),
+      createdAt: '2026-05-26T08:00:00Z',
+      savedResources: [],
+    },
+    {
+      id: 4,
+      name: 'Profesional Admin',
+      email: 'profesional@example.com',
+      password: 'password',
+      role: 'admin_profesional',
+      centroId: 1,
+      status: 'active',
+      avatar: generateAvatarSvg('Profesional Admin'),
+      createdAt: '2026-05-26T08:00:00Z',
+      savedResources: [],
     }
   ];
   try {
     const saved = localStorage.getItem('patitas_mock_users');
-    return saved ? JSON.parse(saved) : defaultUsers;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const emails = parsed.map(u => u && u.email ? u.email.toLowerCase() : '');
+      let modified = false;
+      
+      // Asegurar que los usuarios de control tengan centroId y status
+      parsed.forEach(u => {
+        if (u && u.email) {
+          const emailLower = u.email.toLowerCase();
+          if (['centro@example.com', 'profesional@example.com'].includes(emailLower)) {
+            if (!u.centroId) {
+              u.centroId = 1;
+              modified = true;
+            }
+          }
+          if (!u.status) {
+            u.status = 'active';
+            modified = true;
+          }
+        }
+      });
+
+      defaultUsers.forEach(du => {
+        if (!emails.includes(du.email.toLowerCase())) {
+          parsed.push(du);
+          modified = true;
+        }
+      });
+      if (modified) {
+        localStorage.setItem('patitas_mock_users', JSON.stringify(parsed));
+      }
+      return parsed;
+    }
+    localStorage.setItem('patitas_mock_users', JSON.stringify(defaultUsers));
+    return defaultUsers;
   } catch (_) {
     return defaultUsers;
   }
@@ -70,6 +140,166 @@ function getMockUsers() {
 function saveMockUsers(users) {
   try {
     localStorage.setItem('patitas_mock_users', JSON.stringify(users));
+  } catch (_) {}
+}
+
+const defaultChildren = [
+  {
+    id: 1,
+    name: "Sofía Delgado",
+    birthDate: "2020-04-12",
+    diagnostico: "Trastorno del Espectro Autista (TEA)",
+    avatar: generateAvatarSvg("Sofía Delgado"),
+    centroId: 1,
+    profesionalId: 2,
+    parentIds: [3],
+    inviteCode: "SOF-5678",
+    createdAt: "2024-01-15T10:00:00Z",
+    progress: {
+      comunicacion: 6,
+      social: 4,
+      cognitivo: 7,
+      motor: 8,
+      autonomia: 5
+    },
+    progressHistory: [
+      {
+        date: "2024-01-15T10:00:00Z",
+        comunicacion: 4,
+        social: 3,
+        cognitivo: 5,
+        motor: 6,
+        autonomia: 3
+      },
+      {
+        date: "2024-04-20T11:30:00Z",
+        comunicacion: 6,
+        social: 4,
+        cognitivo: 7,
+        motor: 8,
+        autonomia: 5
+      }
+    ]
+  },
+  {
+    id: 2,
+    name: "Mateo Ruiz",
+    birthDate: "2021-09-05",
+    diagnostico: "Retraso Generalizado del Desarrollo (RGD)",
+    avatar: generateAvatarSvg("Mateo Ruiz"),
+    centroId: 1,
+    profesionalId: 2,
+    parentIds: [],
+    inviteCode: "MAT-1234",
+    createdAt: "2024-02-10T09:00:00Z",
+    progress: {
+      comunicacion: 5,
+      social: 6,
+      cognitivo: 5,
+      motor: 5,
+      autonomia: 4
+    },
+    progressHistory: [
+      {
+        date: "2024-02-10T09:00:00Z",
+        comunicacion: 3,
+        social: 4,
+        cognitivo: 3,
+        motor: 4,
+        autonomia: 2
+      },
+      {
+        date: "2024-05-15T10:00:00Z",
+        comunicacion: 5,
+        social: 6,
+        cognitivo: 5,
+        motor: 5,
+        autonomia: 4
+      }
+    ]
+  }
+];
+
+const defaultSessions = [
+  {
+    id: 1,
+    ninoId: 1,
+    profesionalId: 2,
+    profesionalName: "Profesional de Apoyo",
+    fecha: "2024-05-20",
+    duracion: 45,
+    tipo: "Terapia de Lenguaje",
+    objetivos: [
+      { nombre: "Contacto visual prolongado", score: 4 },
+      { nombre: "Producción de fonemas simples", score: 3 }
+    ],
+    observaciones: "Sofía estuvo alegre y colaboradora. Responde bien a los estímulos visuales."
+  },
+  {
+    id: 2,
+    ninoId: 1,
+    profesionalId: 2,
+    profesionalName: "Profesional de Apoyo",
+    fecha: "2024-05-24",
+    duracion: 45,
+    tipo: "Terapia Ocupacional",
+    objetivos: [
+      { nombre: "Pinza digital para tomar lápiz", score: 3 },
+      { nombre: "Coordinación ojo-mano", score: 4 }
+    ],
+    observaciones: "Logró apilar cubos y ensartar cuentas con menor frustración."
+  },
+  {
+    id: 3,
+    ninoId: 2,
+    profesionalId: 2,
+    profesionalName: "Profesional de Apoyo",
+    fecha: "2024-05-22",
+    duracion: 50,
+    tipo: "Terapia de Psicomotricidad",
+    objetivos: [
+      { nombre: "Salto bipedal con obstáculo", score: 3 },
+      { nombre: "Mantener equilibrio a un pie", score: 2 }
+    ],
+    observaciones: "Mateo requiere apoyo verbal continuo para mantenerse en la tarea."
+  }
+];
+
+function getMockChildren() {
+  try {
+    const saved = localStorage.getItem('patitas_mock_children');
+    if (!saved) {
+      localStorage.setItem('patitas_mock_children', JSON.stringify(defaultChildren));
+      return defaultChildren;
+    }
+    return JSON.parse(saved);
+  } catch (_) {
+    return defaultChildren;
+  }
+}
+
+function saveMockChildren(children) {
+  try {
+    localStorage.setItem('patitas_mock_children', JSON.stringify(children));
+  } catch (_) {}
+}
+
+function getMockSessions() {
+  try {
+    const saved = localStorage.getItem('patitas_mock_sessions');
+    if (!saved) {
+      localStorage.setItem('patitas_mock_sessions', JSON.stringify(defaultSessions));
+      return defaultSessions;
+    }
+    return JSON.parse(saved);
+  } catch (_) {
+    return defaultSessions;
+  }
+}
+
+function saveMockSessions(sessions) {
+  try {
+    localStorage.setItem('patitas_mock_sessions', JSON.stringify(sessions));
   } catch (_) {}
 }
 
@@ -692,6 +922,35 @@ if (isMockEnabled) {
       // Interceptamos centros de atención temprana
       if (url.includes('/centros') && !url.includes('/posts')) {
         const centers = getMockCenters();
+        const method = config.method ? config.method.toLowerCase() : 'get';
+        
+        if (method === 'post') {
+          const payload = getRequestData(config);
+          const newCenter = {
+            id: Math.floor(Math.random() * 1000) + 100,
+            name: payload.name,
+            address: payload.address || 'Sin dirección',
+            phone: payload.phone || '',
+            website: payload.website || '',
+            therapies: [],
+            rating: 5.0,
+            description: payload.description || ''
+          };
+          centers.push(newCenter);
+          saveMockCenters(centers);
+          
+          throw {
+            __isMockResponse: true,
+            response: {
+              status: 201,
+              data: newCenter,
+              statusText: 'Created',
+              headers: {},
+              config
+            }
+          };
+        }
+
         throw {
           __isMockResponse: true,
           response: {
@@ -1487,6 +1746,17 @@ if (isMockEnabled) {
             };
           }
 
+          if (foundUser.status === 'suspended') {
+            throw {
+              __isMockResponse: true,
+              response: {
+                status: 403,
+                data: { message: 'Tu cuenta ha sido suspendida. Por favor, contacta con soporte.' },
+                config
+              }
+            };
+          }
+
           mockData = {
             token: `mock-jwt-token-login-${Date.now()}`,
             user: {
@@ -1633,6 +1903,289 @@ if (isMockEnabled) {
           mockData = {
             message: 'Contraseña actualizada con éxito. Se han cerrado las sesiones en otros dispositivos.'
           };
+        } else if (url.includes('/admin/users')) {
+          const users = getMockUsers();
+          const method = config.method ? config.method.toLowerCase() : 'get';
+          
+          if (method === 'get') {
+            const adminUsers = users.filter(u => u && ['admin_centro', 'admin_profesional'].includes(u.role));
+            mockData = adminUsers;
+          } else if (method === 'post') {
+            const payload = getRequestData(config);
+            if (users.some(u => u && u.email && u.email.toLowerCase() === (payload.email || '').toLowerCase())) {
+              throw {
+                __isMockResponse: true,
+                response: {
+                  status: 400,
+                  data: { message: 'El correo electrónico ya está registrado.' },
+                  config
+                }
+              };
+            }
+            
+            const newAdmin = {
+              id: Math.floor(Math.random() * 1000) + 100,
+              name: payload.name || 'Nuevo Administrador',
+              email: payload.email,
+              password: 'password',
+              role: payload.role || 'admin_centro',
+              centroId: payload.centroId ? parseInt(payload.centroId) : null,
+              status: 'active',
+              avatar: generateAvatarSvg(payload.name || 'Nuevo Administrador'),
+              createdAt: new Date().toISOString(),
+              savedResources: []
+            };
+            
+            users.push(newAdmin);
+            saveMockUsers(users);
+            mockData = newAdmin;
+          } else if (method === 'patch') {
+            const parts = url.split('/');
+            const idPart = parts.find(p => !isNaN(parseInt(p)));
+            const id = idPart ? parseInt(idPart) : null;
+            
+            const userIdx = users.findIndex(u => u && u.id === id);
+            if (userIdx === -1) {
+              throw {
+                __isMockResponse: true,
+                response: {
+                  status: 404,
+                  data: { message: 'Usuario no encontrado.' },
+                  config
+                }
+              };
+            }
+            
+            const payload = getRequestData(config);
+            const updated = {
+              ...users[userIdx],
+              ...payload
+            };
+            
+            if (payload.centroId) updated.centroId = parseInt(payload.centroId);
+            
+            users[userIdx] = updated;
+            saveMockUsers(users);
+            mockData = updated;
+          } else if (method === 'delete') {
+            const parts = url.split('/');
+            const idPart = parts.find(p => !isNaN(parseInt(p)));
+            const id = idPart ? parseInt(idPart) : null;
+            
+            const userIdx = users.findIndex(u => u && u.id === id);
+            if (userIdx === -1) {
+              throw {
+                __isMockResponse: true,
+                response: {
+                  status: 404,
+                  data: { message: 'Usuario no encontrado.' },
+                  config
+                }
+              };
+            }
+            
+            users.splice(userIdx, 1);
+            saveMockUsers(users);
+            mockData = { success: true };
+          }
+        } else if (url.includes('/children')) {
+          const children = getMockChildren();
+          const method = config.method ? config.method.toLowerCase() : 'get';
+          
+          if (url.includes('/link')) {
+            // POST /children/link
+            const payload = getRequestData(config);
+            const inviteCode = (payload.inviteCode || '').trim().toUpperCase();
+            const parentId = parseInt(payload.parentId);
+            
+            const childIdx = children.findIndex(c => c.inviteCode.toUpperCase() === inviteCode);
+            if (childIdx === -1) {
+              throw {
+                __isMockResponse: true,
+                response: {
+                  status: 404,
+                  data: { message: 'Código de invitación no válido o inexistente.' },
+                  config
+                }
+              };
+            }
+            
+            const child = children[childIdx];
+            if (!child.parentIds) child.parentIds = [];
+            if (!child.parentIds.includes(parentId)) {
+              child.parentIds.push(parentId);
+              children[childIdx] = child;
+              saveMockChildren(children);
+            }
+            mockData = { success: true, child };
+          } else if (url.includes('/sessions')) {
+            // GET /children/:id/sessions or POST /children/:id/sessions
+            const parts = url.split('/');
+            const childIdIdx = parts.indexOf('children') + 1;
+            const childId = childIdIdx > 0 ? parseInt(parts[childIdIdx]) : null;
+            
+            if (method === 'get') {
+              const sessions = getMockSessions();
+              mockData = sessions.filter(s => s.ninoId === childId).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            } else if (method === 'post') {
+              const payload = getRequestData(config);
+              const sessions = getMockSessions();
+              const newSession = {
+                id: Math.floor(Math.random() * 1000) + 100,
+                ninoId: childId,
+                profesionalId: payload.profesionalId ? parseInt(payload.profesionalId) : null,
+                profesionalName: payload.profesionalName || 'Profesional de Apoyo',
+                fecha: payload.fecha || new Date().toISOString().split('T')[0],
+                duracion: parseInt(payload.duracion) || 45,
+                tipo: payload.tipo || 'Sesión terapéutica',
+                objetivos: payload.objetivos || [],
+                observaciones: payload.observaciones || ''
+              };
+              sessions.push(newSession);
+              saveMockSessions(sessions);
+              mockData = newSession;
+            }
+          } else if (url.includes('/progress')) {
+            // PATCH /children/:id/progress
+            const parts = url.split('/');
+            const childIdIdx = parts.indexOf('children') + 1;
+            const childId = childIdIdx > 0 ? parseInt(parts[childIdIdx]) : null;
+            
+            const childIdx = children.findIndex(c => c.id === childId);
+            if (childIdx === -1) {
+              throw {
+                __isMockResponse: true,
+                response: {
+                  status: 404,
+                  data: { message: 'Niño no encontrado.' },
+                  config
+                }
+              };
+            }
+            
+            const payload = getRequestData(config);
+            const child = children[childIdx];
+            
+            const progressEntry = {
+              date: new Date().toISOString(),
+              comunicacion: parseInt(payload.comunicacion),
+              social: parseInt(payload.social),
+              cognitivo: parseInt(payload.cognitivo),
+              motor: parseInt(payload.motor),
+              autonomia: parseInt(payload.autonomia)
+            };
+            
+            if (!child.progressHistory) child.progressHistory = [];
+            child.progressHistory.push(progressEntry);
+            child.progress = {
+              comunicacion: progressEntry.comunicacion,
+              social: progressEntry.social,
+              cognitivo: progressEntry.cognitivo,
+              motor: progressEntry.motor,
+              autonomia: progressEntry.autonomia
+            };
+            
+            children[childIdx] = child;
+            saveMockChildren(children);
+            mockData = child;
+          } else {
+            // GET /children or GET /children/:id or POST /children or PATCH /children/:id
+            const parts = url.split('/');
+            const lastPart = parts[parts.length - 1];
+            const hasId = !isNaN(parseInt(lastPart));
+            const childId = hasId ? parseInt(lastPart) : null;
+            
+            if (method === 'get') {
+              if (hasId) {
+                const child = children.find(c => c.id === childId);
+                if (!child) {
+                  throw {
+                    __isMockResponse: true,
+                    response: {
+                      status: 404,
+                      data: { message: 'Niño no encontrado.' },
+                      config
+                    }
+                  };
+                }
+                mockData = child;
+              } else {
+                const params = config.params || {};
+                let filtered = [...children];
+                
+                if (params.centroId) {
+                  filtered = filtered.filter(c => c.centroId === parseInt(params.centroId));
+                }
+                if (params.profesionalId) {
+                  filtered = filtered.filter(c => c.profesionalId === parseInt(params.profesionalId));
+                }
+                if (params.parentId) {
+                  filtered = filtered.filter(c => c.parentIds && c.parentIds.includes(parseInt(params.parentId)));
+                }
+                mockData = filtered;
+              }
+            } else if (method === 'post') {
+              const payload = getRequestData(config);
+              const newChild = {
+                id: Math.floor(Math.random() * 1000) + 100,
+                name: payload.name,
+                birthDate: payload.birthDate,
+                diagnostico: payload.diagnostico || 'Sin diagnóstico',
+                avatar: generateAvatarSvg(payload.name),
+                centroId: parseInt(payload.centroId),
+                profesionalId: payload.profesionalId ? parseInt(payload.profesionalId) : null,
+                parentIds: [],
+                inviteCode: `${payload.name.slice(0, 3).toUpperCase()}-${Math.floor(Math.random() * 9000) + 1000}`,
+                createdAt: new Date().toISOString(),
+                progress: {
+                  comunicacion: 5,
+                  social: 5,
+                  cognitivo: 5,
+                  motor: 5,
+                  autonomia: 5
+                },
+                progressHistory: [
+                  {
+                    date: new Date().toISOString(),
+                    comunicacion: 5,
+                    social: 5,
+                    cognitivo: 5,
+                    motor: 5,
+                    autonomia: 5
+                  }
+                ]
+              };
+              children.push(newChild);
+              saveMockChildren(children);
+              mockData = newChild;
+            } else if (method === 'patch') {
+              const childIdx = children.findIndex(c => c.id === childId);
+              if (childIdx === -1) {
+                throw {
+                  __isMockResponse: true,
+                  response: {
+                    status: 404,
+                    data: { message: 'Niño no encontrado.' },
+                    config
+                  }
+                };
+              }
+              
+              const payload = getRequestData(config);
+              const updated = {
+                ...children[childIdx],
+                ...payload
+              };
+              if (payload.centroId) updated.centroId = parseInt(payload.centroId);
+              if (payload.profesionalId !== undefined) {
+                updated.profesionalId = payload.profesionalId ? parseInt(payload.profesionalId) : null;
+              }
+              
+              children[childIdx] = updated;
+              saveMockChildren(children);
+              mockData = updated;
+            }
+          }
         }
 
         // Interrumpimos la llamada real lanzando la simulación

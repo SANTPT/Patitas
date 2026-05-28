@@ -4,7 +4,6 @@
     <!-- ░░ HERO ░░ -->
     <header class="page-header">
       <div class="header-content container">
-        <span class="hero-tag">📦 Gestión de pedidos</span>
         <h1 class="page-title">¿Necesitas gestionar algún producto?</h1>
         <p class="page-subtitle">
           {{ authStore.isAuthenticated

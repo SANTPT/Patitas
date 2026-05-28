@@ -39,8 +39,13 @@ export const useAuthStore = defineStore('auth', () => {
 
   /** true si el rol del usuario es admin o superadmin */
   const isAdmin = computed(() =>
-    ['admin', 'superadmin'].includes(user.value?.role)
+    ['admin', 'superadmin', 'admin_centro', 'admin_profesional'].includes(user.value?.role)
   );
+
+  const isSuperAdmin = computed(() => user.value?.role === 'superadmin');
+  const isAdminCentro = computed(() => user.value?.role === 'admin_centro');
+  const isAdminProfesional = computed(() => user.value?.role === 'admin_profesional');
+  const isUser = computed(() => user.value?.role === 'user' || !user.value?.role);
 
   /** Iniciales del usuario para el avatar */
   const initials = computed(() => {
@@ -247,6 +252,10 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     displayName,
     isAdmin,
+    isSuperAdmin,
+    isAdminCentro,
+    isAdminProfesional,
+    isUser,
     initials,
     // Actions
     login,
