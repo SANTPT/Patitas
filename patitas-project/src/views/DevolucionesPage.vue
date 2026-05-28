@@ -2,17 +2,17 @@
   <div class="gestion-page">
 
     <!-- ░░ HERO ░░ -->
-    <header class="page-hero">
-      <div class="hero-inner container">
-        <p class="hero-eyebrow">📦 Gestión de pedidos</p>
-        <h1>¿Necesitas gestionar algún producto?</h1>
-        <p class="hero-sub">
+    <header class="page-header">
+      <div class="header-content container">
+        <span class="hero-tag">📦 Gestión de pedidos</span>
+        <h1 class="page-title">¿Necesitas gestionar algún producto?</h1>
+        <p class="page-subtitle">
           {{ authStore.isAuthenticated
               ? 'Elige el producto y te guiamos en menos de 2 minutos.'
               : 'Cuéntanos qué pasó y te guiamos en menos de 2 minutos.' }}
         </p>
       </div>
-      <div class="hero-wave">
+      <div class="header-wave-bottom">
         <svg viewBox="0 0 1440 60" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
           <path d="M0 30C480 60 960 0 1440 30L1440 60L0 60Z" fill="#f0f8ff"/>
         </svg>
@@ -106,7 +106,9 @@
                 :class="{ selected: selectedReason === r.id }"
                 @click="selectReason(r)"
               >
-                <div class="reason-emoji">{{ r.emoji }}</div>
+                <div class="reason-icon-wrap" :class="'icon-' + r.type">
+                  <span class="material-symbols-outlined reason-icon">{{ r.icon }}</span>
+                </div>
                 <strong>{{ r.title }}</strong>
                 <p>{{ r.desc }}</p>
                 <div class="reason-tag" :class="'tag-' + r.type">{{ r.tag }}</div>
@@ -248,7 +250,9 @@
                 :class="{ selected: selectedReason === r.id }"
                 @click="selectReason(r)"
               >
-                <div class="reason-emoji">{{ r.emoji }}</div>
+                <div class="reason-icon-wrap" :class="'icon-' + r.type">
+                  <span class="material-symbols-outlined reason-icon">{{ r.icon }}</span>
+                </div>
                 <strong>{{ r.title }}</strong>
                 <p>{{ r.desc }}</p>
                 <div class="reason-tag" :class="'tag-' + r.type">{{ r.tag }}</div>
@@ -332,6 +336,7 @@ import { RouterLink, useRoute } from 'vue-router';
 import { useCartStore } from '../stores/cart';
 import { useAuthStore } from '../stores/auth';
 import FormStep from '../components/DevolucionFormStep.vue';
+import api from '../services/api';
 
 const route     = useRoute();
 const cartStore = useCartStore();
@@ -402,7 +407,7 @@ const currentReason  = ref(null);
 
 const reasons = [
   {
-    id: 'damaged', emoji: '💔',
+    id: 'damaged', icon: 'heart_broken',
     title: 'Me llegó dañado o defectuoso',
     desc: 'El producto llegó roto, con defecto o no funciona.',
     tag: 'Devolución gratuita', type: 'devolucion',
@@ -417,7 +422,7 @@ const reasons = [
     confirmSteps: ['Revisamos tu solicitud en menos de 24 h.', 'Te enviamos etiqueta de devolución prepagada.', 'Tramitamos el reembolso o reposición en 5–7 días.'],
   },
   {
-    id: 'wrong', emoji: '📦',
+    id: 'wrong', icon: 'inventory',
     title: 'Me enviaron el producto equivocado',
     desc: 'Recibiste un artículo diferente al que pediste.',
     tag: 'Cambio urgente', type: 'cambio',
@@ -432,7 +437,7 @@ const reasons = [
     confirmSteps: ['Verificamos tu pedido en 24 h.', 'Te enviamos etiqueta de devolución.', 'Enviamos el producto correcto.'],
   },
   {
-    id: 'notwanted', emoji: '🔄',
+    id: 'notwanted', icon: 'assignment_return',
     title: 'Ya no lo quiero / me arrepentí',
     desc: 'El producto está bien pero quieres devolverlo.',
     tag: 'Devolución voluntaria', type: 'devolucion',
@@ -447,7 +452,7 @@ const reasons = [
     confirmSteps: ['Te enviamos instrucciones y etiqueta de devolución.', 'Deposita el paquete en 7 días.', 'Tramitamos el reembolso en 5–10 días.'],
   },
   {
-    id: 'change-size', emoji: '↕️',
+    id: 'change-size', icon: 'straighten',
     title: 'Quiero cambiarlo por otra variante',
     desc: 'Necesitas otra talla, color o variante del mismo producto.',
     tag: 'Cambio de variante', type: 'cambio',
@@ -462,7 +467,7 @@ const reasons = [
     confirmSteps: ['Comprobamos disponibilidad en 24 h.', 'Te enviamos etiqueta de devolución.', 'Enviamos la nueva variante.'],
   },
   {
-    id: 'notarrived', emoji: '🔍',
+    id: 'notarrived', icon: 'local_shipping',
     title: 'No ha llegado / no aparece el tracking',
     desc: 'Ha pasado el plazo estimado y no has recibido nada.',
     tag: 'Incidencia de envío', type: 'incidencia',
@@ -477,7 +482,7 @@ const reasons = [
     confirmSteps: ['Abrimos incidencia con el transportista en 4 h.', 'Investigamos y te informamos en 24–48 h.', 'Si está perdido, reenviamos o reembolsamos.'],
   },
   {
-    id: 'other', emoji: '💬',
+    id: 'other', icon: 'support_agent',
     title: 'Tengo otro problema',
     desc: 'Tu situación no encaja en las anteriores.',
     tag: 'Consulta general', type: 'consulta',
@@ -499,7 +504,21 @@ function selectReason(r) {
   step.value = 2;
 }
 
-function onSubmit() { step.value = 3; }
+async function onSubmit(formData) {
+  try {
+    const payload = {
+      productId: activeProduct.value?.productId || activeProduct.value?.id,
+      orderId: activeProduct.value?.orderId || guestOrder.value?.id,
+      type: currentReason.value?.type,
+      ...formData
+    };
+    await api.post('/requests', payload);
+  } catch (error) {
+    console.error('Error submitting return request:', error);
+  } finally {
+    step.value = 3;
+  }
+}
 
 function resetAll() {
   step.value = 0;
@@ -530,14 +549,62 @@ function statusIcon(s) {
 
 <style scoped>
 .gestion-page { background: #f0f8ff; min-height: 100vh; padding-bottom: 5rem; font-family: 'Fredoka', sans-serif; color: #1a5b82; }
+button { font-family: 'Fredoka', sans-serif; color: #1a5b82; }
 
 /* Hero */
-.page-hero { background-image: url('../assets/fondo_azul.png'); background-size: cover; background-position: center; position: relative; padding: 3.5rem 0 5.5rem; text-align: center; }
-.hero-eyebrow { display: inline-block; background: rgba(255,255,255,.72); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,.9); border-radius: 5rem; padding: .3rem 1.1rem; font-size: .9rem; font-weight: 600; margin-bottom: .85rem; }
-.hero-inner h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 700; margin-bottom: .5rem; }
-.hero-sub { font-size: 1.05rem; opacity: .82; }
-.hero-wave { position: absolute; bottom: 0; left: 0; right: 0; height: 3.2rem; z-index: 2; }
-.hero-wave svg { width: 100%; height: 100%; display: block; }
+.page-header {
+  background-image: url('../assets/fondo_azul.png');
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  padding: 4.5rem 0 5.5rem;
+  text-align: center;
+}
+.header-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+.page-title {
+  font-family: 'Fredoka', sans-serif;
+  font-size: clamp(2.2rem, 4vw, 3rem);
+  font-weight: 700;
+  color: #1a5b82;
+  margin-bottom: 0.75rem;
+}
+.page-subtitle {
+  font-size: 1.05rem;
+  color: #1a5b82;
+  opacity: 0.85;
+  max-width: 38rem;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+.hero-tag {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(197, 140, 242, 0.35);
+  color: #1a5b82;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 5px 16px;
+  border-radius: 99px;
+}
+.header-wave-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3.11rem;
+  z-index: 2;
+}
+.header-wave-bottom svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
 
 /* Body */
 .page-body { padding-top: 2.5rem; }
@@ -567,6 +634,8 @@ function statusIcon(s) {
   background: white; border: 2px solid rgba(26,91,130,.09);
   border-radius: 1.1rem; padding: .85rem 1.1rem;
   cursor: pointer; transition: all .2s; position: relative; text-align: left;
+  font-family: 'Fredoka', sans-serif;
+  color: #1a5b82;
 }
 .product-history-card:hover { border-color: rgba(197,140,242,.4); transform: translateY(-1px); }
 .product-history-card.selected { border-color: #c58cf2; background: linear-gradient(135deg, #fdf6ff, white); }
@@ -589,27 +658,54 @@ function statusIcon(s) {
 /* Selected product bar */
 .selected-product-bar {
   display: flex; align-items: center; gap: .85rem;
-  background: white; border-radius: .9rem; padding: .75rem 1.1rem;
-  margin-bottom: 1.5rem; border: 1.5px solid rgba(197,140,242,.3);
+  background: white; border-radius: 1rem; padding: 1rem 1.25rem;
+  margin-bottom: 2rem; border: 1.5px solid rgba(197,140,242,.2);
+  box-shadow: 0 4px 16px rgba(26,91,130,.03);
 }
 .selected-product-bar img { width: 2.8rem; height: 2.8rem; object-fit: cover; border-radius: .55rem; flex-shrink: 0; }
 .selected-product-bar > div { flex: 1; display: flex; flex-direction: column; gap: .1rem; }
 .selected-product-bar strong { font-size: .95rem; font-weight: 700; }
 .selected-product-bar span { font-size: .78rem; opacity: .6; }
-.change-btn { display: inline-flex; align-items: center; gap: .3rem; background: none; border: 1px solid rgba(26,91,130,.18); border-radius: 5rem; padding: .3rem .75rem; font-family: 'Fredoka', sans-serif; font-size: .82rem; font-weight: 600; color: #1a5b82; cursor: pointer; opacity: .7; transition: all .2s; }
-.change-btn:hover { opacity: 1; border-color: #c58cf2; }
-.change-btn .material-symbols-outlined { font-size: .9rem; }
+.change-btn {
+  display: inline-flex; align-items: center; gap: .35rem;
+  background: white; border: 1.5px solid rgba(197, 140, 242, 0.25);
+  border-radius: 5rem; padding: .4rem .9rem;
+  font-family: 'Fredoka', sans-serif; font-size: .85rem; font-weight: 600;
+  color: #1a5b82; cursor: pointer; transition: all .22s ease;
+  box-shadow: 0 2px 8px rgba(26,91,130,.03);
+}
+.change-btn:hover {
+  border-color: #c58cf2;
+  background: #fdf9ff;
+  color: #c58cf2;
+  transform: translateY(-1px);
+}
+.change-btn .material-symbols-outlined { font-size: .95rem; }
 
 /* Reason grid */
 .reason-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 @media (max-width: 580px) { .reason-grid { grid-template-columns: 1fr; } }
-.reason-card { position: relative; background: white; border: 2px solid rgba(26,91,130,.09); border-radius: 1.25rem; padding: 1.35rem 1.25rem 1.2rem; text-align: left; cursor: pointer; transition: all .22s; display: flex; flex-direction: column; gap: .4rem; }
-.reason-card:hover { border-color: rgba(197,140,242,.45); box-shadow: 0 8px 24px rgba(197,140,242,.15); transform: translateY(-2px); }
-.reason-card.selected { border-color: #c58cf2; background: linear-gradient(135deg, #fdf6ff, white); }
-.reason-emoji { font-size: 2rem; }
-.reason-card strong { font-size: 1rem; font-weight: 700; }
-.reason-card p { font-size: .83rem; opacity: .68; line-height: 1.45; margin: 0; flex: 1; }
-.reason-tag { display: inline-flex; border-radius: 5rem; padding: .2rem .75rem; font-size: .75rem; font-weight: 700; width: fit-content; margin-top: .25rem; }
+.reason-card {
+  position: relative; background: white; border: 2px solid rgba(26,91,130,.07); border-radius: 1.5rem; padding: 1.5rem; text-align: left; cursor: pointer; transition: all .22s ease; display: flex; flex-direction: column; gap: .5rem;
+  font-family: 'Fredoka', sans-serif;
+  color: #1a5b82;
+  box-shadow: 0 4px 16px rgba(26,91,130,.02);
+}
+.reason-card:hover { border-color: rgba(197,140,242,.4); box-shadow: 0 8px 28px rgba(197,140,242,.08); transform: translateY(-3px); }
+.reason-card.selected { border-color: #c58cf2; background: linear-gradient(135deg, rgba(197,140,242,0.03), white); box-shadow: 0 8px 28px rgba(197,140,242,.08); }
+.reason-icon-wrap {
+  width: 3rem; height: 3rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: .25rem;
+}
+.reason-icon-wrap .reason-icon { font-size: 1.55rem; }
+.icon-devolucion { background: rgba(252,129,74,.12); color: #c2410c; }
+.icon-cambio     { background: rgba(34,197,94,.1);   color: #15803d; }
+.icon-incidencia { background: rgba(59,130,246,.1);   color: #1d4ed8; }
+.icon-consulta   { background: rgba(197,140,242,.12); color: #7c3aed; }
+.reason-card strong { font-family: 'Fredoka', sans-serif; font-size: 1.1rem; font-weight: 700; }
+.reason-card p { font-family: 'Outfit', sans-serif; font-size: .88rem; opacity: .75; line-height: 1.5; margin: 0; flex: 1; color: #1a5b82; }
+.reason-tag { display: inline-flex; border-radius: 5rem; padding: .25rem .85rem; font-size: .78rem; font-weight: 700; width: fit-content; margin-top: .25rem; font-family: 'Fredoka', sans-serif; }
 .tag-devolucion { background: rgba(252,129,74,.12); color: #c2410c; }
 .tag-cambio     { background: rgba(34,197,94,.1);   color: #15803d; }
 .tag-incidencia { background: rgba(59,130,246,.1);   color: #1d4ed8; }
@@ -619,18 +715,41 @@ function statusIcon(s) {
 .reason-check .material-symbols-outlined { font-size: .9rem; color: white; }
 
 /* Lookup (invitado, paso 0) */
-.lookup-card { background: white; border-radius: 1.5rem; padding: 2rem; box-shadow: 0 8px 32px rgba(26,91,130,.07); border: 1.5px solid rgba(26,91,130,.07); }
-.lookup-input-group { display: flex; align-items: center; gap: .5rem; background: #f7f9fc; border: 2px solid rgba(26,91,130,.15); border-radius: 1rem; padding: .5rem .5rem .5rem 1rem; transition: all .22s; }
+.lookup-card {
+  background: white; border-radius: 1.5rem; padding: 3rem 2.5rem;
+  max-width: 30rem; width: 100%; text-align: center;
+  box-shadow: 0 12px 40px rgba(26,91,130,.07);
+  border: 1.5px solid rgba(26,91,130,.06);
+  margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center; gap: 1.25rem;
+}
+.lookup-input-group {
+  display: flex; align-items: center; gap: .4rem;
+  width: 100%; background: #f7f9fc;
+  border: 2px solid rgba(26,91,130,.15); border-radius: 1rem;
+  padding: .4rem .4rem .4rem 1rem; transition: all .22s;
+}
 .lookup-input-group:focus-within { border-color: #c58cf2; background: white; box-shadow: 0 0 0 3px rgba(197,140,242,.12); }
 .lookup-input-group.error { border-color: #fc8181; }
 .lookup-input-group.success { border-color: #34d399; }
-.lookup-prefix { font-size: 1.3rem; color: #c58cf2; flex-shrink: 0; }
-.lookup-input { flex: 1; background: transparent; border: none; outline: none; font-family: 'Fredoka', sans-serif; font-size: 1.2rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #1a5b82; }
-.lookup-input::placeholder { color: rgba(26,91,130,.35); font-weight: 500; font-size: 1rem; text-transform: none; letter-spacing: 0; }
-.lookup-btn { display: inline-flex; align-items: center; gap: .4rem; background: #c58cf2; color: white; border: none; border-radius: .7rem; padding: .65rem 1.2rem; font-family: 'Fredoka', sans-serif; font-size: 1rem; font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background .2s; }
+.lookup-prefix { font-size: 1.2rem; color: #c58cf2; flex-shrink: 0; }
+.lookup-input {
+  flex: 1; background: transparent; border: none; outline: none;
+  font-family: 'Fredoka', sans-serif; font-size: 1.15rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em; color: #1a5b82;
+  min-width: 0;
+}
+.lookup-input::placeholder { color: rgba(26,91,130,.3); font-weight: 500; font-size: 1rem; text-transform: none; letter-spacing: 0; }
+.lookup-btn {
+  display: inline-flex; align-items: center; gap: .35rem;
+  background: #c58cf2; color: white; border: none;
+  border-radius: .7rem; padding: .6rem 1.1rem;
+  font-family: 'Fredoka', sans-serif; font-size: .95rem; font-weight: 700;
+  cursor: pointer; flex-shrink: 0; transition: background .2s;
+}
 .lookup-btn:hover:not(:disabled) { background: #b373e6; }
 .lookup-btn:disabled { opacity: .4; cursor: not-allowed; }
-.lookup-error { display: flex; align-items: flex-start; gap: .5rem; color: #e53e3e; font-size: .88rem; margin-top: .75rem; line-height: 1.5; }
+.lookup-error { display: flex; align-items: center; gap: .4rem; color: #e53e3e; font-size: .88rem; text-align: left; width: 100%; }
 .lookup-error .material-symbols-outlined { font-size: 1.1rem; flex-shrink: 0; }
 .lookup-hint { display: flex; align-items: center; gap: .4rem; font-family: 'Outfit', sans-serif; font-size: .84rem; opacity: .6; margin-top: 1rem; }
 .lookup-hint a { color: #c58cf2; font-weight: 600; }

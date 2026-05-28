@@ -67,6 +67,14 @@
                 <span class="order-item-qty">Cantidad: {{ item.quantity }}</span>
               </div>
               <span class="order-item-price">{{ fmt(item.subtotal) }}</span>
+              <button
+                v-if="order.status === 'preparing'"
+                class="delete-item-btn"
+                @click="onCancelItem(item.productId, item.name)"
+                title="Eliminar este producto del pedido"
+              >
+                <span class="material-symbols-outlined">delete</span>
+              </button>
             </div>
           </div>
           <div class="order-total-row">
@@ -115,6 +123,14 @@
             <span class="material-symbols-outlined">assignment_return</span>
             Solicitar cambio o devolución
           </RouterLink>
+          <button
+            v-if="order.status === 'preparing'"
+            class="cancel-order-btn"
+            @click="onCancelOrder"
+          >
+            <span class="material-symbols-outlined">cancel</span>
+            Cancelar pedido completo
+          </button>
         </div>
 
       </div>
@@ -125,10 +141,14 @@
 <script setup>
 import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
+import { useCartStore } from '../stores/cart';
 
 const props = defineProps({
   order: { type: Object, required: true }
 });
+
+const emit = defineEmits(['order-cancelled', 'order-updated']);
+const cartStore = useCartStore();
 
 const stages = [
   { icon: 'receipt_long',   label: 'Pedido recibido',  desc: 'Hemos recibido tu pedido y el pago ha sido confirmado.' },
@@ -140,6 +160,28 @@ const stages = [
 const stageIndex = computed(() => {
   return { preparing: 1, shipped: 2, delivered: 3 }[props.order?.status] ?? 1;
 });
+
+function onCancelItem(productId, productName) {
+  if (confirm(`¿Estás seguro de que deseas eliminar "${productName}" de tu pedido?`)) {
+    const res = cartStore.cancelOrderItem(props.order.id, productId);
+    if (res) {
+      if (res.deleted) {
+        emit('order-cancelled', props.order.id);
+      } else {
+        emit('order-updated', res.order);
+      }
+    }
+  }
+}
+
+function onCancelOrder() {
+  if (confirm(`¿Estás seguro de que deseas cancelar y eliminar por completo el pedido ${props.order.id}?`)) {
+    const success = cartStore.cancelOrder(props.order.id);
+    if (success) {
+      emit('order-cancelled', props.order.id);
+    }
+  }
+}
 
 function fmt(val) {
   return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(val ?? 0);
@@ -261,4 +303,24 @@ function paymentLabel(id) {
 }
 .devolucion-btn:hover { background: rgba(197,140,242,.07); border-color: #c58cf2; }
 .right-col { display: flex; flex-direction: column; }
+
+/* Estilos de cancelación */
+.cancel-order-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .6rem;
+  background: white; color: #ef4444;
+  border: 1.5px solid rgba(239, 68, 68, 0.4); padding: .85rem 1.5rem;
+  border-radius: 5rem; font-family: 'Fredoka', sans-serif;
+  font-size: 1rem; font-weight: 700; cursor: pointer;
+  transition: all .22s;
+}
+.cancel-order-btn:hover { background: rgba(239, 68, 68, 0.07); border-color: #ef4444; }
+
+.delete-item-btn {
+  background: none; border: none; cursor: pointer; color: #94a3b8;
+  display: flex; align-items: center; justify-content: center;
+  padding: .4rem; border-radius: 50%; transition: all .2s;
+  margin-left: 0.5rem;
+}
+.delete-item-btn:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.delete-item-btn .material-symbols-outlined { font-size: 1.2rem; }
 </style>

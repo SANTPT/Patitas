@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import api from '../services/api';
 
 export const useCartStore = defineStore('cart', () => {
 
@@ -20,8 +21,80 @@ export const useCartStore = defineStore('cart', () => {
    * Un invitado solo puede buscar por código (getOrder).
    */
   const orders = ref((() => {
-    try { return JSON.parse(localStorage.getItem('patitas_orders') || '[]'); }
-    catch { return []; }
+    // Pedido por defecto en estado "delivered" (entregado) con 4 productos para probar devoluciones
+    const defaultDeliveredOrder = {
+      id: 'PT-99999',
+      userId: '1', // Padre Demo
+      status: 'delivered',
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      estimatedDelivery: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      shippingInfo: {
+        fullName: 'Padre Demo',
+        email: 'demo@example.com',
+        phone: '612345678',
+        address: 'Gran Vía 45',
+        city: 'Bilbao',
+        zip: '48009',
+        country: 'España'
+      },
+      paymentMethod: 'card',
+      items: [
+        {
+          productId: 1,
+          name: 'Puzle de Formas de Madera',
+          price: 18.50,
+          quantity: 1,
+          image: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23faf5ff'/><rect x='150' y='80' width='100' height='100' rx='8' fill='%23c58cf2' opacity='0.5'/><rect x='80' y='210' width='240' height='16' rx='8' fill='%23c58cf2'/><rect x='130' y='240' width='140' height='12' rx='6' fill='%23c58cf2' opacity='0.7'/></svg>",
+          subtotal: 18.50
+        },
+        {
+          productId: 2,
+          name: 'Set de Estimulación Sensorial',
+          price: 34.00,
+          quantity: 1,
+          image: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23faf5ff'/><rect x='150' y='80' width='100' height='100' rx='8' fill='%23c58cf2' opacity='0.5'/><rect x='80' y='210' width='240' height='16' rx='8' fill='%23c58cf2'/><rect x='130' y='240' width='140' height='12' rx='6' fill='%23c58cf2' opacity='0.7'/></svg>",
+          subtotal: 34.00
+        },
+        {
+          productId: 3,
+          name: 'Manta Terapéutica Con Peso',
+          price: 62.00,
+          quantity: 1,
+          image: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23faf5ff'/><rect x='150' y='80' width='100' height='100' rx='8' fill='%23c58cf2' opacity='0.5'/><rect x='80' y='210' width='240' height='16' rx='8' fill='%23c58cf2'/><rect x='130' y='240' width='140' height='12' rx='6' fill='%23c58cf2' opacity='0.7'/></svg>",
+          subtotal: 62.00
+        },
+        {
+          productId: 4,
+          name: 'Kit de Pintura con Dedos Inclusivo',
+          price: 22.00,
+          quantity: 1,
+          image: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='100%' height='100%' fill='%23faf5ff'/><rect x='150' y='80' width='100' height='100' rx='8' fill='%23c58cf2' opacity='0.5'/><rect x='80' y='210' width='240' height='16' rx='8' fill='%23c58cf2'/><rect x='130' y='240' width='140' height='12' rx='6' fill='%23c58cf2' opacity='0.7'/></svg>",
+          subtotal: 22.00
+        }
+      ],
+      total: 136.50
+    };
+
+    try {
+      const saved = localStorage.getItem('patitas_orders');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const hasDefault = parsed.some(o => o.id === 'PT-99999');
+          if (!hasDefault) {
+            parsed.push(defaultDeliveredOrder);
+            localStorage.setItem('patitas_orders', JSON.stringify(parsed));
+          }
+          return parsed;
+        }
+      }
+    } catch (_) {}
+
+    const initialOrders = [defaultDeliveredOrder];
+    try {
+      localStorage.setItem('patitas_orders', JSON.stringify(initialOrders));
+    } catch (_) {}
+    return initialOrders;
   })());
 
   // ── Persistencia ──────────────────────────────────────────────────────────
@@ -144,6 +217,48 @@ export const useCartStore = defineStore('cart', () => {
   // Expose saveOrders for in-place mutations (cancel order, etc.)
   function saveOrdersPublic() { saveOrders(); }
 
+  async function cancelOrder(orderId) {
+    const index = orders.value.findIndex(o => o.id === orderId);
+    if (index !== -1) {
+      if (orders.value[index].status === 'preparing') {
+        try {
+          await api.delete(`/pedidos/${orderId}`);
+        } catch (err) {
+          console.error('Error calling delete API:', err);
+        }
+        orders.value.splice(index, 1);
+        saveOrders();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async function cancelOrderItem(orderId, productId) {
+    const order = orders.value.find(o => o.id === orderId);
+    if (!order || order.status !== 'preparing') return null;
+
+    try {
+      await api.delete(`/pedidos/${orderId}/items/${productId}`);
+    } catch (err) {
+      console.error('Error calling delete item API:', err);
+    }
+
+    order.items = order.items.filter(i => i.productId !== productId);
+    if (order.items.length === 0) {
+      const index = orders.value.indexOf(order);
+      if (index !== -1) {
+        orders.value.splice(index, 1);
+      }
+      saveOrders();
+      return { deleted: true };
+    } else {
+      order.total = +order.items.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2);
+      saveOrders();
+      return { deleted: false, order };
+    }
+  }
+
   return {
     // state
     items, orders,
@@ -153,6 +268,6 @@ export const useCartStore = defineStore('cart', () => {
     allOrders, getOrder, getOrdersByUser, getProductsByUser,
     // actions
     addItem, removeItem, updateQuantity, clearCart, placeOrder,
-    saveOrdersPublic,
+    saveOrdersPublic, cancelOrder, cancelOrderItem,
   };
 });

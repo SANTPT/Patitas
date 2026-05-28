@@ -99,7 +99,7 @@
             <!-- PASO 2: Datos de envío -->
             <div v-if="currentStep === 2" class="panel-card">
               <h2 class="panel-title">Datos de Envío</h2>
-              <form @submit.prevent="currentStep = 3" class="shipping-form">
+              <form @submit.prevent="handleShippingSubmit" class="shipping-form">
                 <div class="form-row">
                   <div class="form-group">
                     <label for="fullName">Nombre completo *</label>
@@ -138,6 +138,15 @@
                     <input id="zip" v-model="shipping.zip" type="text" required placeholder="48001" maxlength="5" />
                   </div>
                 </div>
+
+                <!-- Guardar dirección opcional para logueados -->
+                <div v-if="authStore.isAuthenticated" class="form-group checkbox-group">
+                  <label class="checkbox-label">
+                    <input type="checkbox" v-model="saveAddressToProfile" id="saveAddressCheckbox" />
+                    <span class="checkbox-text">Guardar estos datos en mi perfil para futuras compras</span>
+                  </label>
+                </div>
+
                 <div class="step-actions two-col">
                   <button type="button" class="btn-secondary" @click="currentStep = 1">
                     <span class="material-symbols-outlined">arrow_back</span> Volver
@@ -288,6 +297,28 @@ function formatExpiry(e) {
   cardData.value.expiry = v;
 }
 
+const saveAddressToProfile = ref(false);
+
+async function handleShippingSubmit() {
+  if (authStore.isAuthenticated && saveAddressToProfile.value) {
+    try {
+      await authStore.updateProfile({
+        phone: shipping.value.phone,
+        address: shipping.value.address,
+        city: shipping.value.city,
+        zip: shipping.value.zip,
+        country: shipping.value.country,
+      });
+      window.dispatchEvent(new CustomEvent('show-toast', {
+        detail: { message: 'Dirección guardada en tu perfil.', type: 'success' }
+      }));
+    } catch (err) {
+      console.error('Error al guardar datos de envío:', err);
+    }
+  }
+  currentStep.value = 3;
+}
+
 function completePurchase() {
   paying.value = true;
   setTimeout(() => {
@@ -319,6 +350,11 @@ onMounted(() => {
   if (authStore.user) {
     shipping.value.fullName = authStore.user.name || '';
     shipping.value.email   = authStore.user.email || '';
+    shipping.value.phone   = authStore.user.phone || '';
+    shipping.value.address = authStore.user.address || '';
+    shipping.value.city    = authStore.user.city || '';
+    shipping.value.zip     = authStore.user.zip || '';
+    shipping.value.country = authStore.user.country || 'España';
   }
 });
 </script>
@@ -585,5 +621,32 @@ onMounted(() => {
 .guest-success-actions .btn-primary,
 .guest-success-actions .btn-secondary {
   width: 100%; justify-content: center; text-decoration: none;
+}
+
+/* Checkbox group styling */
+.checkbox-group {
+  margin: 1.5rem 0;
+  display: flex;
+  align-items: center;
+}
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--text-blue, #1a5b82);
+  cursor: pointer;
+  user-select: none;
+}
+.checkbox-label input[type="checkbox"] {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: var(--button-purple, #c58cf2);
+  cursor: pointer;
+  border-radius: 0.25rem;
+}
+.checkbox-text {
+  line-height: 1.2;
 }
 </style>

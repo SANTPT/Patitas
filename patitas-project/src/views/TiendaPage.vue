@@ -465,38 +465,28 @@ function confirmCancelItem(item) {
 const cancelDoneTitle = ref('Eliminación registrada');
 const cancelDoneMsg   = ref('');
 
-function executeCancellation() {
-  const ord = cartStore.orders.find(o => o.id === modalOrder.value.id);
-  if (!ord) return;
-
+async function executeCancellation() {
   if (cancelTarget.value === 'order') {
-    // Eliminar el pedido completo del array
-    const idx = cartStore.orders.indexOf(ord);
-    if (idx !== -1) cartStore.orders.splice(idx, 1);
-    cancelDoneTitle.value = 'Pedido eliminado';
-    cancelDoneMsg.value   = 'El pedido ' + modalOrder.value.id + ' ha sido eliminado. Si ya fue cobrado, recibirás el reembolso en 5–10 días laborales.';
-    modalOrder.value = null;
-
-  } else if (cancelTarget.value === 'item' && cancelItem.value) {
-    // Eliminar solo ese producto del pedido
-    ord.items = ord.items.filter(i => i.productId !== cancelItem.value.productId);
-    if (ord.items.length === 0) {
-      // Si no quedan items, eliminar el pedido completo también
-      const idx = cartStore.orders.indexOf(ord);
-      if (idx !== -1) cartStore.orders.splice(idx, 1);
+    const success = await cartStore.cancelOrder(modalOrder.value.id);
+    if (success) {
       cancelDoneTitle.value = 'Pedido eliminado';
-      cancelDoneMsg.value   = 'Era el único producto. El pedido completo ha sido eliminado.';
+      cancelDoneMsg.value   = 'El pedido ' + modalOrder.value.id + ' ha sido eliminado. Si ya fue cobrado, recibirás el reembolso en 5–10 días laborales.';
       modalOrder.value = null;
-    } else {
-      ord.total = +ord.items.reduce((a, i) => a + i.subtotal, 0).toFixed(2);
-      modalOrder.value = JSON.parse(JSON.stringify(ord));
-      cancelDoneTitle.value = 'Producto eliminado';
-      cancelDoneMsg.value   = cancelItem.value.name + ' ha sido eliminado del pedido. El resto sigue en curso.';
+    }
+  } else if (cancelTarget.value === 'item' && cancelItem.value) {
+    const res = await cartStore.cancelOrderItem(modalOrder.value.id, cancelItem.value.productId);
+    if (res) {
+      if (res.deleted) {
+        cancelDoneTitle.value = 'Pedido eliminado';
+        cancelDoneMsg.value   = 'Era el único producto. El pedido completo ha sido eliminado.';
+        modalOrder.value = null;
+      } else {
+        modalOrder.value = JSON.parse(JSON.stringify(res.order));
+        cancelDoneTitle.value = 'Producto eliminado';
+        cancelDoneMsg.value   = cancelItem.value.name + ' ha sido eliminado del pedido. El resto sigue en curso.';
+      }
     }
   }
-
-  // Persistir todos los pedidos restantes
-  localStorage.setItem('patitas_orders', JSON.stringify(cartStore.orders));
   modalView.value = 'cancel-done';
 }
 

@@ -611,6 +611,84 @@ if (isMockEnabled) {
     async (config) => {
       const url = config.url || '';
 
+      // Interceptamos peticiones de devoluciones/cambios (/requests)
+      if (url.includes('/requests') && config.method?.toLowerCase() === 'post') {
+        const requestData = getRequestData(config);
+        
+        let requests = [];
+        try {
+          const saved = localStorage.getItem('patitas_mock_requests');
+          if (saved) requests = JSON.parse(saved);
+        } catch (_) {}
+        
+        const newRequest = {
+          id: 'REQ-' + Math.floor(100000 + Math.random() * 900000),
+          ...requestData,
+          createdAt: new Date().toISOString(),
+          status: 'pending'
+        };
+        
+        requests.push(newRequest);
+        localStorage.setItem('patitas_mock_requests', JSON.stringify(requests));
+        
+        throw {
+          __isMockResponse: true,
+          response: {
+            status: 201,
+            data: {
+              success: true,
+              message: 'Solicitud de devolución registrada correctamente.',
+              request: newRequest
+            },
+            statusText: 'Created',
+            headers: {},
+            config
+          }
+        };
+      }
+
+      // Interceptamos la eliminación de pedidos (DELETE /pedidos/:id y DELETE /pedidos/:id/items/:productId)
+      if (url.includes('/pedidos/') && config.method?.toLowerCase() === 'delete') {
+        const parts = url.split('/');
+        const idIndex = parts.indexOf('pedidos') + 1;
+        const orderId = parts[idIndex];
+        const isItemDeletion = parts.includes('items');
+        
+        let orders = [];
+        try {
+          const saved = localStorage.getItem('patitas_orders');
+          if (saved) orders = JSON.parse(saved);
+        } catch (_) {}
+
+        if (isItemDeletion) {
+          const productId = parseInt(parts[parts.indexOf('items') + 1]);
+          const order = orders.find(o => o.id === orderId);
+          if (order) {
+            order.items = order.items.filter(i => i.productId !== productId);
+            if (order.items.length === 0) {
+              orders = orders.filter(o => o.id !== orderId);
+            } else {
+              order.total = +order.items.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2);
+            }
+            localStorage.setItem('patitas_orders', JSON.stringify(orders));
+          }
+        } else {
+          orders = orders.filter(o => o.id !== orderId);
+          localStorage.setItem('patitas_orders', JSON.stringify(orders));
+        }
+
+        throw {
+          __isMockResponse: true,
+          response: {
+            status: 200,
+            data: { success: true, message: 'Eliminación procesada con éxito.' },
+            statusText: 'OK',
+            headers: {},
+            config
+          }
+        };
+      }
+
       // Interceptamos centros de atención temprana
       if (url.includes('/centros') && !url.includes('/posts')) {
         const centers = getMockCenters();
@@ -1368,15 +1446,7 @@ if (isMockEnabled) {
         // Update local session storage if it matches current user
         const currentUser = JSON.parse(localStorage.getItem('patitas_user') || '{}');
         if (currentUser.id === userId) {
-          localStorage.setItem('patitas_user', JSON.stringify({
-            id: updatedUser.id,
-            name: updatedUser.name,
-            email: updatedUser.email,
-            role: updatedUser.role,
-            avatar: updatedUser.avatar,
-            createdAt: updatedUser.createdAt,
-            savedResources: updatedUser.savedResources || []
-          }));
+          localStorage.setItem('patitas_user', JSON.stringify(updatedUser));
         }
         
         throw {
@@ -1385,15 +1455,7 @@ if (isMockEnabled) {
             status: 200,
             data: {
               message: 'Perfil actualizado',
-              user: {
-                id: updatedUser.id,
-                name: updatedUser.name,
-                email: updatedUser.email,
-                role: updatedUser.role,
-                avatar: updatedUser.avatar,
-                createdAt: updatedUser.createdAt,
-                savedResources: updatedUser.savedResources || []
-              }
+              user: updatedUser
             },
             statusText: 'OK',
             headers: {},

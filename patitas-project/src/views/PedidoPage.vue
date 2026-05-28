@@ -115,7 +115,11 @@
             <span class="material-symbols-outlined">arrow_back</span>
             Volver a mis pedidos
           </button>
-          <OrderDetail :order="activeOrder" />
+          <OrderDetail
+            :order="activeOrder"
+            @order-cancelled="handleOrderCancelled"
+            @order-updated="handleOrderUpdated"
+          />
         </template>
 
       </template>
@@ -165,7 +169,11 @@
             <span class="material-symbols-outlined">arrow_back</span>
             Buscar otro pedido
           </button>
-          <OrderDetail :order="guestOrder" />
+          <OrderDetail
+            :order="guestOrder"
+            @order-cancelled="handleOrderCancelled"
+            @order-updated="handleOrderUpdated"
+          />
         </template>
 
       </template>
@@ -231,6 +239,29 @@ function verifyCode() {
   } else {
     codeError.value  = true;
     guestOrder.value = null;
+  }
+}
+
+function handleOrderCancelled(orderId) {
+  window.dispatchEvent(new CustomEvent('show-toast', {
+    detail: { message: `Pedido ${orderId} cancelado y eliminado correctamente.`, type: 'success' }
+  }));
+
+  activeOrder.value = null;
+  guestOrder.value = null;
+  inputCode.value = '';
+}
+
+function handleOrderUpdated(updatedOrder) {
+  window.dispatchEvent(new CustomEvent('show-toast', {
+    detail: { message: `Producto eliminado del pedido. Nuevo total: ${fmt(updatedOrder.total)}`, type: 'success' }
+  }));
+
+  if (activeOrder.value && activeOrder.value.id === updatedOrder.id) {
+    activeOrder.value = updatedOrder;
+  }
+  if (guestOrder.value && guestOrder.value.id === updatedOrder.id) {
+    guestOrder.value = updatedOrder;
   }
 }
 
