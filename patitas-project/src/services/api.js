@@ -303,6 +303,79 @@ function saveMockSessions(sessions) {
   } catch (_) {}
 }
 
+const defaultContent = [
+  {
+    id: 1,
+    title: "Ejercicios de Estimulación del Lenguaje en Casa",
+    description: "Una guía en video con ejercicios prácticos de soplo, gesticulación y pronunciación para niños de 2 a 4 años.",
+    type: "video",
+    category: "comunicacion",
+    recommendedAge: "2-4 años",
+    url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    content: "Video explicativo sobre praxias bucofonatorias utilizando juegos cotidianos.",
+    visibility: "public",
+    authorId: 4,
+    authorName: "Profesional Admin",
+    centroId: 1,
+    profesionalId: 4,
+    status: "published",
+    createdAt: "2026-05-27T10:00:00Z"
+  },
+  {
+    id: 2,
+    title: "Manualidad Sensorial: Botella de la Calma",
+    description: "Actividad paso a paso para construir una botella sensorial que ayude en momentos de desregulación emocional.",
+    type: "actividad",
+    category: "sensorial",
+    recommendedAge: "3-6 años",
+    url: "",
+    content: "<p>Las botellas sensoriales son excelentes herramientas para la autorregulación infantil.</p><h4>Materiales:</h4><ul><li>Botella de plástico vacía</li><li>Agua tibia</li><li>Pegamento líquido transparente o purpurina</li><li>Colorante alimentario</li></ul><h4>Pasos:</h4><ol><li>Llena la botella de agua tibia hasta la mitad.</li><li>Añade el pegamento transparente y purpurina. Agita bien.</li><li>Añade unas gotas de colorante.</li><li>Cierra la botella de forma hermética usando pegamento extra en la tapa.</li></ol>",
+    visibility: "public",
+    authorId: 4,
+    authorName: "Profesional Admin",
+    centroId: 1,
+    profesionalId: 4,
+    status: "published",
+    createdAt: "2026-05-26T09:00:00Z"
+  },
+  {
+    id: 3,
+    title: "Técnicas de Integración Sensorial en el Aula",
+    description: "Consejos prácticos para adaptar el espacio físico y reducir la sobrecarga sensorial.",
+    type: "post",
+    category: "sensorial",
+    recommendedAge: "Todos los grupos",
+    url: "",
+    content: "<p>La sobrecarga sensorial puede dificultar gravemente el aprendizaje de los niños con TEA u otras sensibilidades. Aquí te compartimos cómo adaptar tu espacio de estudio...</p>",
+    visibility: "private",
+    authorId: 3,
+    authorName: "Centro Admin",
+    centroId: 1,
+    profesionalId: null,
+    status: "published",
+    createdAt: "2026-05-28T08:00:00Z"
+  }
+];
+
+function getMockContent() {
+  try {
+    const saved = localStorage.getItem('patitas_mock_content');
+    if (!saved) {
+      localStorage.setItem('patitas_mock_content', JSON.stringify(defaultContent));
+      return defaultContent;
+    }
+    return JSON.parse(saved);
+  } catch (_) {
+    return defaultContent;
+  }
+}
+
+function saveMockContent(content) {
+  try {
+    localStorage.setItem('patitas_mock_content', JSON.stringify(content));
+  } catch (_) {}
+}
+
 function getRequestData(config) {
   if (!config || !config.data) return {};
   if (typeof config.data === 'string') {
@@ -1175,6 +1248,22 @@ if (isMockEnabled) {
           }
         ];
 
+        const savedContent = getMockContent();
+        const publicResources = savedContent.filter(item => item.visibility === 'public' && item.status === 'published' && (item.type === 'video' || item.type === 'actividad'));
+        publicResources.forEach(item => {
+          mockResources.unshift({
+            id: 'dyn-res-' + item.id,
+            title: item.title,
+            category: item.type === 'video' ? 'videos' : 'articulos',
+            description: item.description,
+            image: placeholderResourceImage,
+            author: item.authorName || 'Profesional de Patitas',
+            readTime: item.type === 'video' ? 'Duración: video' : 'Actividad práctica',
+            content: item.content || item.description,
+            recommendedAge: item.recommendedAge
+          });
+        });
+
         throw {
           __isMockResponse: true,
           response: {
@@ -1396,6 +1485,23 @@ if (isMockEnabled) {
             `
           }
         ];
+
+        const savedContent = getMockContent();
+        const publicBlogPosts = savedContent.filter(item => item.visibility === 'public' && item.status === 'published' && item.type === 'post');
+        publicBlogPosts.forEach(item => {
+          mockBlogArticles.push({
+            id: 'dyn-blog-' + item.id,
+            title: item.title,
+            slug: 'dyn-post-' + item.id,
+            category: item.category || 'desarrollo',
+            categoryLabel: item.category ? item.category.toUpperCase() : 'Desarrollo',
+            description: item.description,
+            image: placeholderResourceImage,
+            author: item.authorName || 'Profesional de Patitas',
+            date: item.createdAt || new Date().toISOString(),
+            content: item.content || item.description
+          });
+        });
 
         // Verificar si se busca un artículo por slug
         const match = url.match(/\/blog\/([a-zA-Z0-9\-]+)/);
@@ -1663,11 +1769,30 @@ if (isMockEnabled) {
         }
 
         // 5. GET /posts (listado)
+        const savedContent = getMockContent();
+        const publicCommunityPosts = savedContent.filter(item => item.visibility === 'public' && item.status === 'published' && item.type === 'post');
+        
+        const dynamicPosts = publicCommunityPosts.map(item => ({
+          id: 'dyn-post-' + item.id,
+          title: item.title,
+          content: item.content || item.description,
+          category: item.category || 'Consejos',
+          createdAt: item.createdAt || new Date().toISOString(),
+          likes: 0,
+          likedBy: [],
+          author: {
+            name: item.authorName || 'Profesional de Patitas',
+            avatar: '',
+            role: 'Profesional'
+          },
+          comments: []
+        }));
+        
         throw {
           __isMockResponse: true,
           response: {
             status: 200,
-            data: mockPosts,
+            data: [...dynamicPosts, ...mockPosts],
             statusText: 'OK',
             headers: {},
             config
@@ -1720,6 +1845,62 @@ if (isMockEnabled) {
             headers: {},
             config
           }
+        };
+      }
+
+      // Mock PATCH /usuarios/:id/addresses — guardar direcciones de envío
+      if (url.match(/\/usuarios\/\d+\/addresses$/) && config.method === 'patch') {
+        const urlParts = url.split('/');
+        const userId = parseInt(urlParts[urlParts.length - 2]);
+        const { addresses } = getRequestData(config);
+        const users = getMockUsers();
+        const userIndex = users.findIndex(u => u.id === userId);
+
+        if (userIndex === -1) {
+          throw { __isMockResponse: true, response: { status: 404, data: { message: 'Usuario no encontrado.' }, config } };
+        }
+
+        // Validar máximo 3 direcciones
+        const limitedAddresses = (addresses || []).slice(0, 3);
+
+        const updatedUser = { ...users[userIndex], shippingAddresses: limitedAddresses };
+        users[userIndex] = updatedUser;
+        saveMockUsers(users);
+
+        const currentUser = JSON.parse(localStorage.getItem('patitas_user') || '{}');
+        if (currentUser.id === userId) {
+          localStorage.setItem('patitas_user', JSON.stringify(updatedUser));
+        }
+
+        throw {
+          __isMockResponse: true,
+          response: { status: 200, data: { message: 'Direcciones actualizadas', user: updatedUser }, statusText: 'OK', headers: {}, config }
+        };
+      }
+
+      // Mock DELETE /usuarios/:id/addresses — eliminar todas las direcciones
+      if (url.match(/\/usuarios\/\d+\/addresses$/) && config.method === 'delete') {
+        const urlParts = url.split('/');
+        const userId = parseInt(urlParts[urlParts.length - 2]);
+        const users = getMockUsers();
+        const userIndex = users.findIndex(u => u.id === userId);
+
+        if (userIndex === -1) {
+          throw { __isMockResponse: true, response: { status: 404, data: { message: 'Usuario no encontrado.' }, config } };
+        }
+
+        const updatedUser = { ...users[userIndex], shippingAddresses: [] };
+        users[userIndex] = updatedUser;
+        saveMockUsers(users);
+
+        const currentUser = JSON.parse(localStorage.getItem('patitas_user') || '{}');
+        if (currentUser.id === userId) {
+          localStorage.setItem('patitas_user', JSON.stringify(updatedUser));
+        }
+
+        throw {
+          __isMockResponse: true,
+          response: { status: 200, data: { message: 'Direcciones eliminadas', user: updatedUser }, statusText: 'OK', headers: {}, config }
         };
       }
 
@@ -1789,7 +1970,7 @@ if (isMockEnabled) {
             name: name || 'Usuario Registrado',
             email: email || 'nuevo@example.com',
             password: password || 'password',
-            role: childName ? `padre(s) de: ${childName}` : 'user',
+            role: 'user',
             avatar: generateAvatarSvg(name || 'Usuario Registrado'),
             createdAt: new Date().toISOString(),
             savedResources: []
@@ -1986,6 +2167,122 @@ if (isMockEnabled) {
             
             users.splice(userIdx, 1);
             saveMockUsers(users);
+            mockData = { success: true };
+          }
+        } else if (url.includes('/content')) {
+          const contents = getMockContent();
+          const method = config.method ? config.method.toLowerCase() : 'get';
+          
+          const parts = url.split('/');
+          const lastPart = parts[parts.length - 1];
+          const hasId = !isNaN(parseInt(lastPart));
+          const contentId = hasId ? parseInt(lastPart) : null;
+          
+          if (method === 'get') {
+            if (hasId) {
+              const item = contents.find(c => c.id === contentId);
+              if (!item) {
+                throw {
+                  __isMockResponse: true,
+                  response: {
+                    status: 404,
+                    data: { message: 'Contenido no encontrado.' },
+                    config
+                  }
+                };
+              }
+              mockData = item;
+            } else {
+              const params = config.params || {};
+              let filtered = [...contents];
+              
+              if (params.authorId) {
+                filtered = filtered.filter(c => c.authorId === parseInt(params.authorId));
+              }
+              if (params.centroId) {
+                filtered = filtered.filter(c => c.centroId === parseInt(params.centroId));
+              }
+              if (params.profesionalId) {
+                filtered = filtered.filter(c => c.profesionalId === parseInt(params.profesionalId));
+              }
+              if (params.visibility) {
+                filtered = filtered.filter(c => c.visibility === params.visibility);
+              }
+              if (params.status) {
+                filtered = filtered.filter(c => c.status === params.status);
+              }
+              if (params.parentId) {
+                const children = getMockChildren();
+                const parentChildren = children.filter(c => c.parentIds && c.parentIds.includes(parseInt(params.parentId)));
+                const centroIds = parentChildren.map(c => c.centroId);
+                const profesionalIds = parentChildren.map(c => c.profesionalId).filter(id => id !== null);
+                
+                filtered = filtered.filter(c => {
+                  if (c.status !== 'published') return false;
+                  if (c.visibility === 'public') return true;
+                  return (c.centroId && centroIds.includes(c.centroId)) || 
+                         (c.profesionalId && profesionalIds.includes(c.profesionalId));
+                });
+              }
+              
+              mockData = filtered;
+            }
+          } else if (method === 'post') {
+            const payload = getRequestData(config);
+            const newContent = {
+              id: Math.floor(Math.random() * 10000) + 100,
+              title: payload.title,
+              description: payload.description,
+              type: payload.type || 'post',
+              category: payload.category || 'desarrollo',
+              recommendedAge: payload.recommendedAge || 'Cualquier edad',
+              url: payload.url || '',
+              content: payload.content || '',
+              visibility: payload.visibility || 'public',
+              authorId: parseInt(payload.authorId),
+              authorName: payload.authorName || 'Autor',
+              centroId: payload.centroId ? parseInt(payload.centroId) : null,
+              profesionalId: payload.profesionalId ? parseInt(payload.profesionalId) : null,
+              status: payload.status || 'published',
+              createdAt: new Date().toISOString()
+            };
+            contents.push(newContent);
+            saveMockContent(contents);
+            mockData = newContent;
+          } else if (method === 'patch') {
+            const contentIdx = contents.findIndex(c => c.id === contentId);
+            if (contentIdx === -1) {
+              throw {
+                __isMockResponse: true,
+                response: {
+                  status: 404,
+                  data: { message: 'Contenido no encontrado.' },
+                  config
+                }
+              };
+            }
+            const payload = getRequestData(config);
+            const updated = {
+              ...contents[contentIdx],
+              ...payload
+            };
+            contents[contentIdx] = updated;
+            saveMockContent(contents);
+            mockData = updated;
+          } else if (method === 'delete') {
+            const contentIdx = contents.findIndex(c => c.id === contentId);
+            if (contentIdx === -1) {
+              throw {
+                __isMockResponse: true,
+                response: {
+                  status: 404,
+                  data: { message: 'Contenido no encontrado.' },
+                  config
+                }
+              };
+            }
+            contents.splice(contentIdx, 1);
+            saveMockContent(contents);
             mockData = { success: true };
           }
         } else if (url.includes('/children')) {

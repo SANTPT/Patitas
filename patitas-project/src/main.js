@@ -5,17 +5,23 @@ import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
 
-const app = createApp(App)
-const pinia = createPinia()
+async function bootstrap() {
+  const app = createApp(App)
+  const pinia = createPinia()
 
-// Pinia ANTES que Router (el guard del router usa useAuthStore)
-app.use(pinia)
-app.use(router)
+  app.use(pinia)
 
-// Restaurar sesión si existe token guardado al iniciar la app (T-FE13-04)
-const authStore = useAuthStore()
-authStore.me()
+  // Restaurar sesión ANTES de que el router evalúe cualquier guard.
+  // Sin esto, auth.user es null cuando el beforeEach corre por primera vez.
+  const authStore = useAuthStore()
+  await authStore.me()
 
-app.mount('#app')
+  app.use(router)
 
+  // Esperar a que el router resuelva la ruta inicial antes de montar
+  await router.isReady()
 
+  app.mount('#app')
+}
+
+bootstrap()

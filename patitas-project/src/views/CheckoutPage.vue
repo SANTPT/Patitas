@@ -99,6 +99,30 @@
             <!-- PASO 2: Datos de envío -->
             <div v-if="currentStep === 2" class="panel-card">
               <h2 class="panel-title">Datos de Envío</h2>
+
+              <!-- Selector de direcciones guardadas (solo si tiene alguna) -->
+              <div v-if="savedAddresses.length > 0" class="saved-addresses-selector">
+                <p class="saved-label">
+                  <span class="material-symbols-outlined">bookmark</span>
+                  Usar una dirección guardada:
+                </p>
+                <div class="saved-addr-list">
+                  <button
+                    v-for="(addr, idx) in savedAddresses"
+                    :key="idx"
+                    type="button"
+                    class="saved-addr-btn"
+                    :class="{ selected: selectedSavedAddress === idx }"
+                    @click="selectedSavedAddress = idx; applySavedAddress(addr)"
+                  >
+                    <span>{{ addr.tag === 'Casa' ? '🏠' : addr.tag === 'Trabajo' ? '💼' : '📍' }}</span>
+                    <span class="saved-addr-name">{{ addr.tag }}</span>
+                    <span class="saved-addr-city">{{ addr.city }}</span>
+                    <span v-if="addr.isDefault" class="saved-default-dot"></span>
+                  </button>
+                </div>
+              </div>
+
               <form @submit.prevent="handleShippingSubmit" class="shipping-form">
                 <div class="form-row">
                   <div class="form-group">
@@ -298,6 +322,20 @@ function formatExpiry(e) {
 }
 
 const saveAddressToProfile = ref(false);
+const selectedSavedAddress = ref(null);
+
+// Direcciones guardadas del usuario (para selector)
+const savedAddresses = computed(() => authStore.user?.shippingAddresses || []);
+
+// Aplicar una dirección guardada a los campos de envío
+function applySavedAddress(addr) {
+  if (!addr) return;
+  shipping.value.phone   = addr.phone   || '';
+  shipping.value.address = addr.address || '';
+  shipping.value.city    = addr.city    || '';
+  shipping.value.zip     = addr.zip     || '';
+  shipping.value.country = addr.country || 'España';
+}
 
 async function handleShippingSubmit() {
   if (authStore.isAuthenticated && saveAddressToProfile.value) {
@@ -329,10 +367,8 @@ function completePurchase() {
     });
     paying.value = false;
     if (authStore.isAuthenticated) {
-      // Usuario logueado: ir directo a la página del pedido
       router.push({ name: 'pedido', params: { id: order.id } });
     } else {
-      // Invitado: mostrar pantalla de confirmación con el código
       completedOrder.value = order;
     }
   }, 1600);
@@ -346,15 +382,24 @@ function copyCode() {
 }
 
 onMounted(() => {
-  // Pre-rellenar con datos del usuario logueado
   if (authStore.user) {
-    shipping.value.fullName = authStore.user.name || '';
-    shipping.value.email   = authStore.user.email || '';
-    shipping.value.phone   = authStore.user.phone || '';
-    shipping.value.address = authStore.user.address || '';
-    shipping.value.city    = authStore.user.city || '';
-    shipping.value.zip     = authStore.user.zip || '';
-    shipping.value.country = authStore.user.country || 'España';
+    shipping.value.fullName = authStore.user.name  || '';
+    shipping.value.email    = authStore.user.email || '';
+
+    // Buscar dirección predeterminada en shippingAddresses (FE-26)
+    const addrs = authStore.user.shippingAddresses || [];
+    const defAddr = addrs.find(a => a.isDefault) || addrs[0] || null;
+    if (defAddr) {
+      applySavedAddress(defAddr);
+      selectedSavedAddress.value = addrs.indexOf(defAddr);
+    } else {
+      // Fallback a campos planos del perfil
+      shipping.value.phone   = authStore.user.phone   || '';
+      shipping.value.address = authStore.user.address || '';
+      shipping.value.city    = authStore.user.city    || '';
+      shipping.value.zip     = authStore.user.zip     || '';
+      shipping.value.country = authStore.user.country || 'España';
+    }
   }
 });
 </script>
@@ -648,5 +693,37 @@ onMounted(() => {
 }
 .checkbox-text {
   line-height: 1.2;
+}
+
+/* ── Saved addresses selector ── */
+.saved-addresses-selector {
+  background: rgba(197,140,242,0.05);
+  border: 1.5px solid rgba(197,140,242,0.15);
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.saved-label {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.85rem; font-weight: 600;
+  color: var(--text-blue, #1a5b82); margin: 0 0 0.75rem;
+}
+.saved-label .material-symbols-outlined { font-size: 1rem; color: var(--button-purple, #c58cf2); }
+.saved-addr-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.saved-addr-btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.45rem 0.9rem; border-radius: 5rem;
+  border: 1.5px solid rgba(197,140,242,0.2); background: white;
+  font-family: 'Fredoka', sans-serif; font-size: 0.88rem; font-weight: 500;
+  color: var(--text-blue, #1a5b82); cursor: pointer; transition: all 0.2s ease;
+  position: relative;
+}
+.saved-addr-btn:hover { border-color: #c58cf2; }
+.saved-addr-btn.selected { border-color: #c58cf2; background: #faf5ff; font-weight: 700; }
+.saved-addr-name { font-weight: 700; }
+.saved-addr-city { font-size: 0.78rem; color: #7c8ba1; }
+.saved-default-dot {
+  width: 0.45rem; height: 0.45rem; border-radius: 50%;
+  background: #c58cf2; flex-shrink: 0;
 }
 </style>

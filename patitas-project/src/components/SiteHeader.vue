@@ -43,10 +43,16 @@
 
         <!-- Botón dinámico según estado de sesión -->
         <template v-if="authStore.isAuthenticated">
-          <div class="user-pill" style="cursor: pointer;" @click="router.push('/dashboard')">
+          <div class="user-pill" @click="router.push('/dashboard')" role="button" tabindex="0" aria-label="Ir a mi panel" id="header-panel-btn">
             <img v-if="authStore.user?.avatar" :src="authStore.user.avatar" class="user-avatar-img" alt="Avatar" />
             <span v-else class="user-avatar">{{ authStore.initials }}</span>
-            <span class="user-name">{{ authStore.displayName }}</span>
+            <div class="user-pill-info">
+              <span class="user-name">{{ authStore.displayName }}</span>
+              <span class="user-pill-label">
+                <span class="material-symbols-outlined" style="font-size:0.8rem;">dashboard</span>
+                Mi panel
+              </span>
+            </div>
             <button class="logout-btn" @click.stop="authStore.logout()" aria-label="Cerrar sesión">
               <span class="material-symbols-outlined">logout</span>
             </button>
@@ -182,7 +188,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useCartStore } from '../stores/cart';
@@ -197,14 +203,20 @@ const isSticky = ref(false);
 const isCartOpen = ref(false);
 const route = useRoute();
 
-const navItems = ref([
-  { label: 'inicio',   href: '/' },
-  { label: 'recursos', href: '/recursos' },
-  { label: 'comunidad patitas', href: '/comunidad' },
-  { label: 'centros',  href: '/centros' },
-  { label: 'tienda',   href: '/tienda' },
-  { label: 'contacto', href: '/contacto' },
-]);
+const navItems = computed(() => {
+  const items = [
+    { label: 'inicio',   href: '/' },
+    { label: 'recursos', href: '/recursos' },
+    { label: 'comunidad patitas', href: '/comunidad' },
+    { label: 'centros',  href: '/centros' },
+    { label: 'tienda',   href: '/tienda' },
+    { label: 'contacto', href: '/contacto' },
+  ];
+  if (authStore.isAuthenticated) {
+    items.push({ label: 'mi panel', href: '/dashboard' });
+  }
+  return items;
+});
 
 const handleScroll = () => {
   isSticky.value = window.scrollY > 80;
@@ -422,6 +434,31 @@ onUnmounted(() => {
   padding: 0.28rem 0.67rem 0.28rem 0.28rem;
   box-shadow: var(--shadow-soft);
   transition: all 0.22s ease;
+  cursor: pointer;
+}
+
+.user-pill:hover {
+  background: rgba(255,255,255,0.95);
+  box-shadow: var(--shadow-mid);
+  transform: translateY(-0.05rem);
+}
+
+.user-pill-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.user-pill-label {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--button-purple);
+  opacity: 0.85;
+  white-space: nowrap;
 }
 
 .user-avatar-img {

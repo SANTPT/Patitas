@@ -47,6 +47,14 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdminProfesional = computed(() => user.value?.role === 'admin_profesional');
   const isUser = computed(() => user.value?.role === 'user' || !user.value?.role);
 
+  /** Direcciones de envío guardadas (máx 3, solo rol 'user') */
+  const shippingAddresses = computed(() => user.value?.shippingAddresses || []);
+
+  /** Índice de la dirección predeterminada (-1 si no hay) */
+  const defaultAddressIndex = computed(() =>
+    (user.value?.shippingAddresses || []).findIndex(a => a.isDefault)
+  );
+
   /** Iniciales del usuario para el avatar */
   const initials = computed(() => {
     if (!user.value?.name) return '?';
@@ -225,6 +233,58 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // ── Acciones de direcciones de envío (solo rol 'user') ────────────────────
+
+  /**
+   * Actualiza el array completo de direcciones de envío del usuario.
+   * Máximo 3 direcciones.
+   * @param {Array} addresses
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async function updateShippingAddresses(addresses) {
+    if (!user.value) return { success: false, error: 'Usuario no autenticado' };
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      const response = await api.patch(`/usuarios/${user.value.id}/addresses`, { addresses });
+      const updatedUser = response.data.user;
+      user.value = updatedUser;
+      localStorage.setItem('patitas_user', JSON.stringify(updatedUser));
+      return { success: true };
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Error al guardar direcciones.';
+      error.value = msg;
+      return { success: false, error: msg };
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /**
+   * Elimina todas las direcciones de envío guardadas del usuario.
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async function deleteShippingAddresses() {
+    if (!user.value) return { success: false, error: 'Usuario no autenticado' };
+    isLoading.value = true;
+    error.value = null;
+
+    try {
+      const response = await api.delete(`/usuarios/${user.value.id}/addresses`);
+      const updatedUser = response.data.user;
+      user.value = updatedUser;
+      localStorage.setItem('patitas_user', JSON.stringify(updatedUser));
+      return { success: true };
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Error al eliminar direcciones.';
+      error.value = msg;
+      return { success: false, error: msg };
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   // ── Helpers privados ──────────────────────────────────────────────────────
 
   function _setSession(newToken, newUser) {
@@ -257,6 +317,8 @@ export const useAuthStore = defineStore('auth', () => {
     isAdminProfesional,
     isUser,
     initials,
+    shippingAddresses,
+    defaultAddressIndex,
     // Actions
     login,
     logout,
@@ -265,5 +327,7 @@ export const useAuthStore = defineStore('auth', () => {
     loginOAuth,
     updateProfile,
     changePassword,
+    updateShippingAddresses,
+    deleteShippingAddresses,
   };
 });

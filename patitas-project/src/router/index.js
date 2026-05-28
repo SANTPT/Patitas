@@ -113,13 +113,17 @@ const routes = [
     meta: { requiresAuth: true },
     beforeEnter: (to, from, next) => {
       const auth = useAuthStore();
+
       if (!auth.isAuthenticated) {
         return next({ name: 'login', query: { redirect: to.fullPath } });
       }
-      if (auth.isSuperAdmin) next('/dashboard/superadmin');
-      else if (auth.isAdminCentro) next('/dashboard/admin-centro');
-      else if (auth.isAdminProfesional) next('/dashboard/admin-profesional');
-      else next('/dashboard/usuario');
+
+      const role = auth.user?.role || 'user';
+
+      if (role === 'superadmin')        return next('/dashboard/superadmin');
+      if (role === 'admin_centro')      return next('/dashboard/admin-centro');
+      if (role === 'admin_profesional') return next('/dashboard/admin-profesional');
+      return next('/dashboard/usuario');
     },
     children: [
       // superadmin
@@ -161,7 +165,9 @@ const routes = [
       { path: 'admin-centro/ninos/:id', name: 'dashboard-centro-ninos-detalle', component: () => import('../views/dashboard/ChildDetailView.vue'), meta: { roles: ['admin_centro'] } },
       { path: 'admin-centro/ninos/:id/editar', name: 'dashboard-centro-ninos-editar', component: () => import('../views/dashboard/ChildFormView.vue'), meta: { roles: ['admin_centro'] } },
       { path: 'admin-centro/citas', name: 'dashboard-centro-citas', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['admin_centro'] } },
-      { path: 'admin-centro/contenido', name: 'dashboard-centro-contenido', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['admin_centro'] } },
+      { path: 'admin-centro/contenido', name: 'dashboard-centro-contenido', component: () => import('../views/dashboard/ContentListView.vue'), meta: { roles: ['admin_centro'] } },
+      { path: 'admin-centro/contenido/nuevo', name: 'dashboard-centro-contenido-nuevo', component: () => import('../views/dashboard/ContentFormView.vue'), meta: { roles: ['admin_centro'] } },
+      { path: 'admin-centro/contenido/:id/editar', name: 'dashboard-centro-contenido-editar', component: () => import('../views/dashboard/ContentFormView.vue'), meta: { roles: ['admin_centro'] } },
 
       // admin_profesional
       {
@@ -180,7 +186,9 @@ const routes = [
       { path: 'admin-profesional/mis-ninos/:id', name: 'dashboard-profesional-ninos-detalle', component: () => import('../views/dashboard/ChildDetailView.vue'), meta: { roles: ['admin_profesional'] } },
       { path: 'admin-profesional/citas', name: 'dashboard-profesional-citas', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['admin_profesional'] } },
       { path: 'admin-profesional/progreso', name: 'dashboard-profesional-progreso', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['admin_profesional'] } },
-      { path: 'admin-profesional/contenido', name: 'dashboard-profesional-contenido', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['admin_profesional'] } },
+      { path: 'admin-profesional/contenido', name: 'dashboard-profesional-contenido', component: () => import('../views/dashboard/ContentListView.vue'), meta: { roles: ['admin_profesional'] } },
+      { path: 'admin-profesional/contenido/nuevo', name: 'dashboard-profesional-contenido-nuevo', component: () => import('../views/dashboard/ContentFormView.vue'), meta: { roles: ['admin_profesional'] } },
+      { path: 'admin-profesional/contenido/:id/editar', name: 'dashboard-profesional-contenido-editar', component: () => import('../views/dashboard/ContentFormView.vue'), meta: { roles: ['admin_profesional'] } },
 
       // user
       {
@@ -198,8 +206,15 @@ const routes = [
       { path: 'usuario/mis-hijos', name: 'dashboard-usuario-hijos', component: () => import('../views/dashboard/ParentChildrenView.vue'), meta: { roles: ['user'] } },
       { path: 'usuario/mis-hijos/:id', name: 'dashboard-usuario-hijos-detalle', component: () => import('../views/dashboard/ChildDetailView.vue'), meta: { roles: ['user'] } },
       { path: 'usuario/mis-eventos', name: 'dashboard-usuario-eventos', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['user'] } },
-      { path: 'usuario/mis-pedidos', name: 'dashboard-usuario-pedidos', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['user'] } }
+      { path: 'usuario/mis-pedidos', name: 'dashboard-usuario-pedidos', component: () => import('../views/dashboard/OrderHistoryView.vue'), meta: { roles: ['user'] } }
     ]
+  },
+
+  // ── Páginas legales — FE-18 ─────────────────────────────────────────────
+  {
+    path: '/legal/:page',
+    name: 'legal',
+    component: () => import('../views/LegalPage.vue'),
   },
 
   // ── 404 ─────────────────────────────────────────────────────────────────
@@ -229,31 +244,25 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const auth = useAuthStore();
 
-  // 1. Verificar autenticación
-  const needsAuth = to.meta.requiresAuth || to.matched.some(record => record.meta.requiresAuth);
+  // 1. Rutas que requieren autenticación
+  const needsAuth = to.matched.some(record => record.meta.requiresAuth);
   if (needsAuth && !auth.isAuthenticated) {
-    return next({
-      name: 'login',
-      query: { redirect: to.fullPath },
-    });
+    return next({ name: 'login', query: { redirect: to.fullPath } });
   }
 
-  // 2. Verificar roles (autorización)
-  const matchedRouteWithRoles = to.matched.find(record => record.meta.roles);
-  if (matchedRouteWithRoles) {
-    const allowedRoles = matchedRouteWithRoles.meta.roles;
-    const userRole = auth.user?.role || 'user';
-    
-    if (!allowedRoles.includes(userRole)) {
-      // Disparar toast de advertencia
+  // 2. Rutas con control de rol
+  const routeWithRoles = to.matched.find(record => record.meta.roles);
+  if (routeWithRoles && auth.isAuthenticated) {
+    const allowed = routeWithRoles.meta.roles;
+    const role    = auth.user?.role || 'user';
+
+    if (!allowed.includes(role)) {
       window.dispatchEvent(new CustomEvent('show-toast', {
         detail: { message: 'No tienes permisos para esa sección', type: 'error' }
       }));
-
-      // Redirigir a su dashboard correspondiente
-      if (userRole === 'superadmin') return next('/dashboard/superadmin');
-      if (userRole === 'admin_centro') return next('/dashboard/admin-centro');
-      if (userRole === 'admin_profesional') return next('/dashboard/admin-profesional');
+      if (role === 'superadmin')        return next('/dashboard/superadmin');
+      if (role === 'admin_centro')      return next('/dashboard/admin-centro');
+      if (role === 'admin_profesional') return next('/dashboard/admin-profesional');
       return next('/dashboard/usuario');
     }
   }
