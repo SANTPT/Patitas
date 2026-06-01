@@ -118,12 +118,16 @@ const routes = [
         return next({ name: 'login', query: { redirect: to.fullPath } });
       }
 
-      const role = auth.user?.role || 'user';
+      // Evitar bucles de redirección: solo redirigir si se accede a la ruta base /dashboard
+      if (to.path === '/dashboard' || to.path === '/dashboard/') {
+        const role = auth.user?.role || 'user';
+        if (role === 'superadmin')        return next('/dashboard/superadmin');
+        if (role === 'admin_centro')      return next('/dashboard/admin-centro');
+        if (role === 'admin_profesional') return next('/dashboard/admin-profesional');
+        return next('/dashboard/usuario');
+      }
 
-      if (role === 'superadmin')        return next('/dashboard/superadmin');
-      if (role === 'admin_centro')      return next('/dashboard/admin-centro');
-      if (role === 'admin_profesional') return next('/dashboard/admin-profesional');
-      return next('/dashboard/usuario');
+      next();
     },
     children: [
       // superadmin
@@ -140,10 +144,10 @@ const routes = [
         meta: { roles: ['superadmin'] }
       },
       { path: 'superadmin/gestion-web', name: 'dashboard-superadmin-gestion', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['superadmin'] } },
-      { path: 'superadmin/centros', name: 'dashboard-superadmin-centros', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['superadmin'] } },
+      { path: 'superadmin/centros', name: 'dashboard-superadmin-centros', component: () => import('../views/dashboard/CentrosView.vue'), meta: { roles: ['superadmin'] } },
       { path: 'superadmin/admins', name: 'dashboard-superadmin-admins', component: () => import('../views/dashboard/AdminsView.vue'), meta: { roles: ['superadmin'] } },
       { path: 'superadmin/tienda', name: 'dashboard-superadmin-tienda', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['superadmin'] } },
-      { path: 'superadmin/moderacion', name: 'dashboard-superadmin-moderacion', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['superadmin'] } },
+      { path: 'superadmin/moderacion', name: 'dashboard-superadmin-moderacion', component: () => import('../views/dashboard/ModeracionView.vue'), meta: { roles: ['superadmin'] } },
 
       // admin_centro
       {
@@ -158,13 +162,13 @@ const routes = [
         component: () => import('../views/dashboard/DashboardPerfil.vue'),
         meta: { roles: ['admin_centro'] }
       },
-      { path: 'admin-centro/mi-centro', name: 'dashboard-centro-mi-centro', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['admin_centro'] } },
-      { path: 'admin-centro/profesionales', name: 'dashboard-centro-profesionales', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['admin_centro'] } },
+      { path: 'admin-centro/mi-centro', name: 'dashboard-centro-mi-centro', component: () => import('../views/dashboard/MiCentroView.vue'), meta: { roles: ['admin_centro'] } },
+      { path: 'admin-centro/profesionales', name: 'dashboard-centro-profesionales', component: () => import('../views/dashboard/ProfesionalesView.vue'), meta: { roles: ['admin_centro'] } },
       { path: 'admin-centro/ninos', name: 'dashboard-centro-ninos', component: () => import('../views/dashboard/ChildrenView.vue'), meta: { roles: ['admin_centro'] } },
       { path: 'admin-centro/ninos/nuevo', name: 'dashboard-centro-ninos-nuevo', component: () => import('../views/dashboard/ChildFormView.vue'), meta: { roles: ['admin_centro'] } },
       { path: 'admin-centro/ninos/:id', name: 'dashboard-centro-ninos-detalle', component: () => import('../views/dashboard/ChildDetailView.vue'), meta: { roles: ['admin_centro'] } },
       { path: 'admin-centro/ninos/:id/editar', name: 'dashboard-centro-ninos-editar', component: () => import('../views/dashboard/ChildFormView.vue'), meta: { roles: ['admin_centro'] } },
-      { path: 'admin-centro/citas', name: 'dashboard-centro-citas', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['admin_centro'] } },
+      { path: 'admin-centro/citas', name: 'dashboard-centro-citas', component: () => import('../views/dashboard/CitasView.vue'), meta: { roles: ['admin_centro'] } },
       { path: 'admin-centro/contenido', name: 'dashboard-centro-contenido', component: () => import('../views/dashboard/ContentListView.vue'), meta: { roles: ['admin_centro'] } },
       { path: 'admin-centro/contenido/nuevo', name: 'dashboard-centro-contenido-nuevo', component: () => import('../views/dashboard/ContentFormView.vue'), meta: { roles: ['admin_centro'] } },
       { path: 'admin-centro/contenido/:id/editar', name: 'dashboard-centro-contenido-editar', component: () => import('../views/dashboard/ContentFormView.vue'), meta: { roles: ['admin_centro'] } },
@@ -184,7 +188,7 @@ const routes = [
       },
       { path: 'admin-profesional/mis-ninos', name: 'dashboard-profesional-ninos', component: () => import('../views/dashboard/ChildrenView.vue'), meta: { roles: ['admin_profesional'] } },
       { path: 'admin-profesional/mis-ninos/:id', name: 'dashboard-profesional-ninos-detalle', component: () => import('../views/dashboard/ChildDetailView.vue'), meta: { roles: ['admin_profesional'] } },
-      { path: 'admin-profesional/citas', name: 'dashboard-profesional-citas', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['admin_profesional'] } },
+      { path: 'admin-profesional/citas', name: 'dashboard-profesional-citas', component: () => import('../views/dashboard/CitasView.vue'), meta: { roles: ['admin_profesional'] } },
       { path: 'admin-profesional/progreso', name: 'dashboard-profesional-progreso', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['admin_profesional'] } },
       { path: 'admin-profesional/contenido', name: 'dashboard-profesional-contenido', component: () => import('../views/dashboard/ContentListView.vue'), meta: { roles: ['admin_profesional'] } },
       { path: 'admin-profesional/contenido/nuevo', name: 'dashboard-profesional-contenido-nuevo', component: () => import('../views/dashboard/ContentFormView.vue'), meta: { roles: ['admin_profesional'] } },
@@ -206,6 +210,7 @@ const routes = [
       { path: 'usuario/mis-hijos', name: 'dashboard-usuario-hijos', component: () => import('../views/dashboard/ParentChildrenView.vue'), meta: { roles: ['user'] } },
       { path: 'usuario/mis-hijos/:id', name: 'dashboard-usuario-hijos-detalle', component: () => import('../views/dashboard/ChildDetailView.vue'), meta: { roles: ['user'] } },
       { path: 'usuario/mis-eventos', name: 'dashboard-usuario-eventos', component: () => import('../views/dashboard/DashboardSection.vue'), meta: { roles: ['user'] } },
+      { path: 'usuario/citas', name: 'dashboard-usuario-citas', component: () => import('../views/dashboard/CitasUsuario.vue'), meta: { roles: ['user'] } },
       { path: 'usuario/mis-pedidos', name: 'dashboard-usuario-pedidos', component: () => import('../views/dashboard/OrderHistoryView.vue'), meta: { roles: ['user'] } }
     ]
   },

@@ -42,6 +42,28 @@ export const useAdminsStore = defineStore('admins', () => {
     }
   }
 
+  async function createProfessional(data) {
+    isLoading.value = true;
+    error.value = null;
+    try {
+      const response = await api.post('/admin/users', {
+        name: data.name,
+        email: data.email,
+        role: 'admin_profesional',
+        centroId: data.centroId,
+        specialty: data.specialty
+      });
+      admins.value.push(response.data);
+      return { success: true, admin: response.data };
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Error al crear el profesional.';
+      error.value = msg;
+      return { success: false, error: msg };
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   async function updateAdminCentro(id, data) {
     isLoading.value = true;
     error.value = null;
@@ -58,6 +80,29 @@ export const useAdminsStore = defineStore('admins', () => {
       return { success: true, admin: response.data };
     } catch (err) {
       const msg = err.response?.data?.message || 'Error al actualizar el administrador.';
+      error.value = msg;
+      return { success: false, error: msg };
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function updateProfessional(id, data) {
+    isLoading.value = true;
+    error.value = null;
+    try {
+      const response = await api.patch(`/admin/users/${id}`, {
+        name: data.name,
+        email: data.email,
+        specialty: data.specialty
+      });
+      const idx = admins.value.findIndex(a => a.id === id);
+      if (idx !== -1) {
+        admins.value[idx] = response.data;
+      }
+      return { success: true, admin: response.data };
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Error al actualizar el profesional.';
       error.value = msg;
       return { success: false, error: msg };
     } finally {
@@ -136,7 +181,9 @@ export const useAdminsStore = defineStore('admins', () => {
     error,
     fetchAdmins,
     createAdminCentro,
+    createProfessional,
     updateAdminCentro,
+    updateProfessional,
     suspendUser,
     reactivateUser,
     deleteUser

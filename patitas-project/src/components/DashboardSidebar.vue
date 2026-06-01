@@ -54,6 +54,7 @@ const menuItems = computed(() => {
     return [
       { label: 'Inicio', path: '/dashboard/usuario', icon: 'dashboard' },
       { label: 'Mis hijos', path: '/dashboard/usuario/mis-hijos', icon: 'child_care' },
+      { label: 'Citas', path: '/dashboard/usuario/citas', icon: 'calendar_month' },
       { label: 'Mis eventos', path: '/dashboard/usuario/mis-eventos', icon: 'event' },
       { label: 'Mis pedidos', path: '/dashboard/usuario/mis-pedidos', icon: 'local_shipping' },
       { label: 'Perfil', path: '/dashboard/usuario/perfil', icon: 'person' },

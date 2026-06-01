@@ -413,6 +413,9 @@ watch(scrollLoader, (newEl) => {
 
 onMounted(() => {
   fetchPosts();
+  if (route.query.tab) {
+    activeTab.value = route.query.tab;
+  }
   if (route.query.open === 'new-post' && authStore.isAuthenticated) {
     showNewPostModal.value = true;
     router.replace({ query: { ...route.query, open: undefined } });

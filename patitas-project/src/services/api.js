@@ -997,17 +997,26 @@ if (isMockEnabled) {
         const centers = getMockCenters();
         const method = config.method ? config.method.toLowerCase() : 'get';
         
+        const parts = url.split('/');
+        const centrosIndex = parts.indexOf('centros');
+        const idStr = parts[centrosIndex + 1];
+        const subAction = parts[centrosIndex + 2];
+        const centerId = idStr ? parseInt(idStr) : null;
+
         if (method === 'post') {
           const payload = getRequestData(config);
           const newCenter = {
             id: Math.floor(Math.random() * 1000) + 100,
             name: payload.name,
             address: payload.address || 'Sin dirección',
+            city: payload.city || '',
             phone: payload.phone || '',
+            email: payload.email || '',
             website: payload.website || '',
-            therapies: [],
+            therapies: payload.therapies || ['Psicomotricidad', 'Logopedia'],
             rating: 5.0,
-            description: payload.description || ''
+            description: payload.description || '',
+            status: 'active'
           };
           centers.push(newCenter);
           saveMockCenters(centers);
@@ -1022,7 +1031,83 @@ if (isMockEnabled) {
               config
             }
           };
+        } else if (method === 'patch' && centerId) {
+          const payload = getRequestData(config);
+          const idx = centers.findIndex(c => c.id === centerId);
+          if (idx !== -1) {
+            if (subAction === 'status') {
+              centers[idx].status = payload.status;
+              // Propagate to admins/professionals of this center
+              const users = getMockUsers();
+              users.forEach(u => {
+                if (u.centroId === centerId && (u.role === 'admin_centro' || u.role === 'admin_profesional')) {
+                  u.status = payload.status;
+                }
+              });
+              saveMockUsers(users);
+            } else {
+              centers[idx] = { ...centers[idx], ...payload };
+            }
+            saveMockCenters(centers);
+            throw {
+              __isMockResponse: true,
+              response: {
+                status: 200,
+                data: centers[idx],
+                statusText: 'OK',
+                headers: {},
+                config
+              }
+            };
+          } else {
+            throw {
+              __isMockResponse: true,
+              response: {
+                status: 404,
+                data: { message: 'Centro no encontrado' },
+                statusText: 'Not Found',
+                headers: {},
+                config
+              }
+            };
+          }
+        } else if (method === 'get' && centerId) {
+          const center = centers.find(c => c.id === centerId);
+          if (center) {
+            throw {
+              __isMockResponse: true,
+              response: {
+                status: 200,
+                data: center,
+                statusText: 'OK',
+                headers: {},
+                config
+              }
+            };
+          } else {
+            throw {
+              __isMockResponse: true,
+              response: {
+                status: 404,
+                data: { message: 'Centro no encontrado' },
+                statusText: 'Not Found',
+                headers: {},
+                config
+              }
+            };
+          }
         }
+
+        // Add default status field if not present for frontend consistency
+        centers.forEach(c => {
+          if (!c.status) c.status = 'active';
+          if (!c.city) {
+            if (c.address && c.address.includes('Madrid')) c.city = 'Madrid';
+            else if (c.address && c.address.includes('Bilbao')) c.city = 'Bilbao';
+            else if (c.address && c.address.includes('Valencia')) c.city = 'Valencia';
+            else c.city = 'Desconocida';
+          }
+        });
 
         throw {
           __isMockResponse: true,
@@ -1727,6 +1812,103 @@ if (isMockEnabled) {
           }
         }
 
+        // 3a. POST /posts/:id/delete-request
+        const matchDeleteReq = url.match(/\/posts\/(\d+)\/delete-request/);
+        if (matchDeleteReq && config.method === 'post') {
+          const postId = parseInt(matchDeleteReq[1]);
+          const post = mockPosts.find(p => p.id === postId);
+          if (post) {
+            post.deleteRequestPending = true;
+            saveMockPosts(mockPosts);
+            
+            // Guardar en patitas_mock_delete_requests
+            let deleteRequests = [];
+            try {
+              const savedReqs = localStorage.getItem('patitas_mock_delete_requests');
+              deleteRequests = savedReqs ? JSON.parse(savedReqs) : [];
+            } catch (_) {}
+            
+            if (!deleteRequests.some(r => r.postId === postId)) {
+              deleteRequests.push({
+                id: Math.floor(Math.random() * 1000) + 100,
+                postId: postId,
+                postTitle: post.title,
+                authorName: post.author.name,
+                createdAt: new Date().toISOString(),
+                status: 'pendiente'
+              });
+              localStorage.setItem('patitas_mock_delete_requests', JSON.stringify(deleteRequests));
+            }
+            
+            throw {
+              __isMockResponse: true,
+              response: {
+                status: 200,
+                data: { success: true, message: 'Solicitud de eliminación registrada.' },
+                statusText: 'OK',
+                headers: {},
+                config
+              }
+            };
+          } else {
+            throw {
+              __isMockResponse: true,
+              response: { status: 404, data: { message: "Post no encontrado" }, config }
+            };
+          }
+        }
+
+        // 3b. PATCH /posts/:id (editar)
+        if (matchDetail && config.method === 'patch') {
+          const postId = parseInt(matchDetail[1]);
+          const postIdx = mockPosts.findIndex(p => p.id === postId);
+          if (postIdx !== -1) {
+            const payload = getRequestData(config);
+            mockPosts[postIdx] = { ...mockPosts[postIdx], ...payload };
+            saveMockPosts(mockPosts);
+            throw {
+              __isMockResponse: true,
+              response: {
+                status: 200,
+                data: mockPosts[postIdx],
+                statusText: 'OK',
+                headers: {},
+                config
+              }
+            };
+          } else {
+            throw {
+              __isMockResponse: true,
+              response: { status: 404, data: { message: "Post no encontrado" }, config }
+            };
+          }
+        }
+
+        // 3c. DELETE /posts/:id (eliminar directo)
+        if (matchDetail && config.method === 'delete') {
+          const postId = parseInt(matchDetail[1]);
+          const postIdx = mockPosts.findIndex(p => p.id === postId);
+          if (postIdx !== -1) {
+            mockPosts.splice(postIdx, 1);
+            saveMockPosts(mockPosts);
+            throw {
+              __isMockResponse: true,
+              response: {
+                status: 200,
+                data: { success: true },
+                statusText: 'OK',
+                headers: {},
+                config
+              }
+            };
+          } else {
+            throw {
+              __isMockResponse: true,
+              response: { status: 404, data: { message: "Post no encontrado" }, config }
+            };
+          }
+        }
+
         // 4. POST /posts (crear)
         if (config.method === 'post') {
           const { title, content, category } = getRequestData(config);
@@ -2111,6 +2293,7 @@ if (isMockEnabled) {
               password: 'password',
               role: payload.role || 'admin_centro',
               centroId: payload.centroId ? parseInt(payload.centroId) : null,
+              specialty: payload.specialty || (payload.role === 'admin_profesional' ? 'Logopedia' : undefined),
               status: 'active',
               avatar: generateAvatarSvg(payload.name || 'Nuevo Administrador'),
               createdAt: new Date().toISOString(),
@@ -2481,6 +2664,362 @@ if (isMockEnabled) {
               children[childIdx] = updated;
               saveMockChildren(children);
               mockData = updated;
+            }
+          }
+        } else if (url.includes('/citas')) {
+          const method = config.method ? config.method.toLowerCase() : 'get';
+          let citas = [];
+          try {
+            const saved = localStorage.getItem('patitas_mock_citas');
+            citas = saved ? JSON.parse(saved) : [
+              { id: 1, date: '2026-06-28', time: '09:00', childId: 1, childName: 'Sofía Delgado', professionalId: 4, professionalName: 'Profesional Admin', type: 'Logopedia', duration: 45, status: 'programada', notes: 'Sesión de seguimiento.' },
+              { id: 2, date: '2026-06-28', time: '10:30', childId: 2, childName: 'Mateo Ruiz', professionalId: 4, professionalName: 'Profesional Admin', type: 'Psicomotricidad', duration: 60, status: 'programada', notes: 'Estimulación motora.' },
+              { id: 3, date: '2026-05-27', time: '11:00', childId: 1, childName: 'Sofía Delgado', professionalId: 4, professionalName: 'Profesional Admin', type: 'ABA', duration: 45, status: 'completada', notes: 'Trabajo con pictogramas.' }
+            ];
+          } catch (_) {
+            citas = [];
+          }
+
+          const parts = url.split('/');
+          const citasIndex = parts.indexOf('citas');
+          const citaIdStr = parts[citasIndex + 1];
+          const subAction = parts[citasIndex + 2];
+          const subAction2 = parts[citasIndex + 3];
+          const citaId = citaIdStr ? parseInt(citaIdStr) : null;
+
+          if (method === 'get') {
+            if (citaId) {
+              const c = citas.find(x => x.id === citaId);
+              if (!c) {
+                throw { __isMockResponse: true, response: { status: 404, data: { message: 'Cita no encontrada.' }, config } };
+              }
+              mockData = c;
+            } else {
+              const params = config.params || {};
+              let filtered = [...citas];
+              if (params.centroId) {
+                const children = getMockChildren();
+                const childIds = children.filter(c => c.centroId === parseInt(params.centroId)).map(c => c.id);
+                filtered = filtered.filter(c => childIds.includes(c.childId));
+              }
+              if (params.profesionalId) {
+                filtered = filtered.filter(c => c.professionalId === parseInt(params.profesionalId));
+              }
+              if (params.childId) {
+                filtered = filtered.filter(c => c.childId === parseInt(params.childId));
+              }
+              if (params.parentId) {
+                const children = getMockChildren();
+                const childIds = children.filter(c => c.parentIds && c.parentIds.includes(parseInt(params.parentId))).map(c => c.id);
+                filtered = filtered.filter(c => childIds.includes(c.childId));
+              }
+              mockData = filtered;
+            }
+          } else if (method === 'post') {
+            if (subAction === 'reprogramar' && citaId) {
+              const payload = getRequestData(config);
+              const idx = citas.findIndex(x => x.id === citaId);
+              if (idx !== -1) {
+                citas[idx].reprogramacionSolicitada = true;
+                citas[idx].reprogramacionProps = {
+                  date: payload.date,
+                  time: payload.time,
+                  reason: payload.reason || ''
+                };
+                localStorage.setItem('patitas_mock_citas', JSON.stringify(citas));
+                
+                let reqs = [];
+                try {
+                  const savedReqs = localStorage.getItem('patitas_mock_reprogramaciones');
+                  reqs = savedReqs ? JSON.parse(savedReqs) : [];
+                } catch (_) {}
+                reqs.push({
+                  id: Math.floor(Math.random() * 1000) + 100,
+                  citaId,
+                  childName: citas[idx].childName,
+                  professionalName: citas[idx].professionalName,
+                  originalDate: citas[idx].date,
+                  originalTime: citas[idx].time,
+                  requestedDate: payload.date,
+                  requestedTime: payload.time,
+                  reason: payload.reason || '',
+                  status: 'pendiente'
+                });
+                localStorage.setItem('patitas_mock_reprogramaciones', JSON.stringify(reqs));
+                mockData = citas[idx];
+              } else {
+                throw { __isMockResponse: true, response: { status: 404, data: { message: 'Cita no encontrada.' }, config } };
+              }
+            } else {
+              const payload = getRequestData(config);
+              const newCita = {
+                id: Math.floor(Math.random() * 1000) + 100,
+                date: payload.date,
+                time: payload.time,
+                childId: parseInt(payload.childId),
+                childName: payload.childName || '',
+                professionalId: parseInt(payload.professionalId),
+                professionalName: payload.professionalName || '',
+                type: payload.type || 'Sesión terapéutica',
+                duration: parseInt(payload.duration) || 45,
+                status: 'programada',
+                notes: payload.notes || ''
+              };
+              citas.push(newCita);
+              localStorage.setItem('patitas_mock_citas', JSON.stringify(citas));
+              mockData = newCita;
+            }
+          } else if (method === 'patch' && citaId) {
+            if (subAction === 'reprogramacion') {
+              const idx = citas.findIndex(x => x.id === citaId);
+              if (idx !== -1) {
+                let reqs = [];
+                try {
+                  const savedReqs = localStorage.getItem('patitas_mock_reprogramaciones');
+                  reqs = savedReqs ? JSON.parse(savedReqs) : [];
+                } catch (_) {}
+                const reqIdx = reqs.findIndex(r => r.citaId === citaId && r.status === 'pendiente');
+                
+                if (subAction2 === 'accept') {
+                  if (reqIdx !== -1) reqs[reqIdx].status = 'aceptada';
+                  citas[idx].date = citas[idx].reprogramacionProps.date;
+                  citas[idx].time = citas[idx].reprogramacionProps.time;
+                  citas[idx].reprogramacionSolicitada = false;
+                  citas[idx].reprogramacionProps = null;
+                } else if (subAction2 === 'reject') {
+                  if (reqIdx !== -1) reqs[reqIdx].status = 'rechazada';
+                  citas[idx].reprogramacionSolicitada = false;
+                  citas[idx].reprogramacionProps = null;
+                }
+                localStorage.setItem('patitas_mock_citas', JSON.stringify(citas));
+                localStorage.setItem('patitas_mock_reprogramaciones', JSON.stringify(reqs));
+                mockData = citas[idx];
+              } else {
+                throw { __isMockResponse: true, response: { status: 404, data: { message: 'Cita no encontrada.' }, config } };
+              }
+            } else {
+              const payload = getRequestData(config);
+              const idx = citas.findIndex(x => x.id === citaId);
+              if (idx !== -1) {
+                citas[idx] = { ...citas[idx], ...payload };
+                if (payload.childId) citas[idx].childId = parseInt(payload.childId);
+                if (payload.professionalId) citas[idx].professionalId = parseInt(payload.professionalId);
+                localStorage.setItem('patitas_mock_citas', JSON.stringify(citas));
+                mockData = citas[idx];
+              } else {
+                throw { __isMockResponse: true, response: { status: 404, data: { message: 'Cita no encontrada.' }, config } };
+              }
+            }
+          } else if (method === 'delete' && citaId) {
+            citas = citas.filter(x => x.id !== citaId);
+            localStorage.setItem('patitas_mock_citas', JSON.stringify(citas));
+            mockData = { success: true };
+          }
+        } else if (url.includes('/eventos')) {
+          const method = config.method ? config.method.toLowerCase() : 'get';
+          let eventos = [];
+          try {
+            const saved = localStorage.getItem('patitas_mock_eventos');
+            eventos = saved ? JSON.parse(saved) : [
+              { id: 1, title: 'Círculo de juego inclusivo', description: 'Actividades recreativas adaptadas para niños con TEA y RGD.', date: '2026-06-15', time: '17:00', modality: 'presencial', capacity: 20, visibility: 'public', centerId: null, enrolled: [] },
+              { id: 2, title: 'Charla sobre Sistemas Aumentativos (PECS)', description: 'Taller formativo para familias sobre comunicación alternativa.', date: '2026-06-20', time: '11:00', modality: 'online', capacity: 50, visibility: 'public', centerId: null, enrolled: [] },
+              { id: 3, title: 'Reunión privada de Familias de Bilbao', description: 'Espacio de contención para padres del centro de Bilbao.', date: '2026-06-25', time: '18:00', modality: 'presencial', capacity: 15, visibility: 'private', centerId: 1, enrolled: [] }
+            ];
+          } catch (_) {
+            eventos = [];
+          }
+
+          const parts = url.split('/');
+          const eventosIndex = parts.indexOf('eventos');
+          const eventoIdStr = parts[eventosIndex + 1];
+          const subAction = parts[eventosIndex + 2];
+          const eventoId = eventoIdStr ? parseInt(eventoIdStr) : null;
+
+          if (method === 'get') {
+            if (eventoId) {
+              const ev = eventos.find(x => x.id === eventoId);
+              if (!ev) {
+                throw { __isMockResponse: true, response: { status: 404, data: { message: 'Evento no encontrado.' }, config } };
+              }
+              mockData = ev;
+            } else {
+              const params = config.params || {};
+              let filtered = [...eventos];
+              if (params.userCentroId) {
+                const uCentroId = parseInt(params.userCentroId);
+                filtered = filtered.filter(ev => ev.visibility === 'public' || ev.centerId === uCentroId);
+              } else {
+                filtered = filtered.filter(ev => ev.visibility === 'public');
+              }
+              mockData = filtered;
+            }
+          } else if (method === 'post') {
+            if (subAction === 'inscripcion' && eventoId) {
+              const payload = getRequestData(config);
+              const userEmail = payload.email || 'user@example.com';
+              const idx = eventos.findIndex(x => x.id === eventoId);
+              if (idx !== -1) {
+                if (!eventos[idx].enrolled) eventos[idx].enrolled = [];
+                if (!eventos[idx].enrolled.includes(userEmail)) {
+                  eventos[idx].enrolled.push(userEmail);
+                }
+                localStorage.setItem('patitas_mock_eventos', JSON.stringify(eventos));
+                mockData = eventos[idx];
+              } else {
+                throw { __isMockResponse: true, response: { status: 404, data: { message: 'Evento no encontrado.' }, config } };
+              }
+            } else {
+              const payload = getRequestData(config);
+              const newEv = {
+                id: Math.floor(Math.random() * 1000) + 100,
+                title: payload.title,
+                description: payload.description,
+                date: payload.date,
+                time: payload.time,
+                modality: payload.modality || 'presencial',
+                capacity: parseInt(payload.capacity) || 20,
+                visibility: payload.visibility || 'public',
+                centerId: payload.centerId ? parseInt(payload.centerId) : null,
+                enrolled: []
+              };
+              eventos.push(newEv);
+              localStorage.setItem('patitas_mock_eventos', JSON.stringify(eventos));
+              mockData = newEv;
+            }
+          } else if (method === 'delete' && eventoId) {
+            if (subAction === 'inscripcion') {
+              const userEmail = config.params?.email || 'user@example.com';
+              const idx = eventos.findIndex(x => x.id === eventoId);
+              if (idx !== -1) {
+                if (eventos[idx].enrolled) {
+                  eventos[idx].enrolled = eventos[idx].enrolled.filter(e => e !== userEmail);
+                }
+                localStorage.setItem('patitas_mock_eventos', JSON.stringify(eventos));
+                mockData = eventos[idx];
+              } else {
+                throw { __isMockResponse: true, response: { status: 404, data: { message: 'Evento no encontrado.' }, config } };
+              }
+            } else {
+              eventos = eventos.filter(x => x.id !== eventoId);
+              localStorage.setItem('patitas_mock_eventos', JSON.stringify(eventos));
+              mockData = { success: true };
+            }
+          }
+        } else if (url.includes('/historias')) {
+          const method = config.method ? config.method.toLowerCase() : 'get';
+          let stories = [];
+          try {
+            const saved = localStorage.getItem('patitas_mock_stories');
+            stories = saved ? JSON.parse(saved) : [
+              { id: 1, title: 'Avances con pictogramas', content: 'Mateo no toleraba los ruidos fuertes y nos resultaba imposible ir al supermercado...', author: { name: 'Laura M.', role: 'Mamá de Mateo' }, status: 'publicada', createdAt: '2026-05-20T10:00:00Z' },
+              { id: 2, title: 'El valor de la anticipación', content: 'Sofía ha mejorado enormemente su transición entre actividades usando rutinas visuales...', author: { name: 'Carlos D.', role: 'Papá de Sofía' }, status: 'publicada', createdAt: '2026-05-22T12:00:00Z' }
+            ];
+          } catch (_) {
+            stories = [];
+          }
+
+          const parts = url.split('/');
+          const storiesIndex = parts.indexOf('historias');
+          const storyIdStr = parts[storiesIndex + 1];
+          const storyId = storyIdStr ? parseInt(storyIdStr) : null;
+
+          if (method === 'get') {
+            if (storyId) {
+              const st = stories.find(x => x.id === storyId);
+              if (!st) {
+                throw { __isMockResponse: true, response: { status: 404, data: { message: 'Historia no encontrada.' }, config } };
+              }
+              mockData = st;
+            } else {
+              const params = config.params || {};
+              let filtered = [...stories];
+              if (params.status) {
+                filtered = filtered.filter(x => x.status === params.status);
+              } else {
+                filtered = filtered.filter(x => x.status === 'publicada');
+              }
+              mockData = filtered;
+            }
+          } else if (method === 'post') {
+            const payload = getRequestData(config);
+            const newStory = {
+              id: Math.floor(Math.random() * 1000) + 100,
+              title: payload.title,
+              content: payload.content,
+              author: payload.author || { name: 'Usuario Anónimo', role: 'Familia' },
+              status: 'pending_aprobacion',
+              createdAt: new Date().toISOString()
+            };
+            stories.push(newStory);
+            localStorage.setItem('patitas_mock_stories', JSON.stringify(stories));
+            mockData = newStory;
+          } else if (method === 'patch' && storyId) {
+            const payload = getRequestData(config);
+            const idx = stories.findIndex(x => x.id === storyId);
+            if (idx !== -1) {
+              stories[idx] = { ...stories[idx], ...payload };
+              localStorage.setItem('patitas_mock_stories', JSON.stringify(stories));
+              mockData = stories[idx];
+            } else {
+              throw { __isMockResponse: true, response: { status: 404, data: { message: 'Historia no encontrada.' }, config } };
+            }
+          }
+        } else if (url.includes('/moderation')) {
+          const method = config.method ? config.method.toLowerCase() : 'get';
+          const parts = url.split('/');
+          const modIndex = parts.indexOf('moderation');
+          const subResource = parts[modIndex + 1];
+          const subIdStr = parts[modIndex + 2];
+          const subAction = parts[modIndex + 3];
+          const subId = subIdStr ? parseInt(subIdStr) : null;
+
+          if (method === 'get' && !subResource) {
+            let deleteRequests = [];
+            try {
+              const savedReqs = localStorage.getItem('patitas_mock_delete_requests');
+              deleteRequests = savedReqs ? JSON.parse(savedReqs) : [];
+            } catch (_) {}
+
+            let stories = [];
+            try {
+              const savedStories = localStorage.getItem('patitas_mock_stories');
+              stories = savedStories ? JSON.parse(savedStories) : [];
+            } catch (_) {}
+            const pendingStories = stories.filter(s => s.status === 'pending_aprobacion');
+
+            mockData = { deleteRequests, pendingStories };
+          } else if (subResource === 'delete-requests' && subId) {
+            let deleteRequests = [];
+            try {
+              const savedReqs = localStorage.getItem('patitas_mock_delete_requests');
+              deleteRequests = savedReqs ? JSON.parse(savedReqs) : [];
+            } catch (_) {}
+            
+            const reqIdx = deleteRequests.findIndex(r => r.id === subId);
+            if (reqIdx !== -1) {
+              const req = deleteRequests[reqIdx];
+              if (subAction === 'approve') {
+                let posts = getMockPosts();
+                posts = posts.filter(p => p.id !== req.postId && p.id !== 'dyn-post-' + req.postId);
+                saveMockPosts(posts);
+
+                deleteRequests.splice(reqIdx, 1);
+                localStorage.setItem('patitas_mock_delete_requests', JSON.stringify(deleteRequests));
+                mockData = { success: true };
+              } else if (subAction === 'reject') {
+                let posts = getMockPosts();
+                const postIdx = posts.findIndex(p => p.id === req.postId);
+                if (postIdx !== -1) {
+                  posts[postIdx].deleteRequestPending = false;
+                  saveMockPosts(posts);
+                }
+
+                deleteRequests.splice(reqIdx, 1);
+                localStorage.setItem('patitas_mock_delete_requests', JSON.stringify(deleteRequests));
+                mockData = { success: true };
+              }
+            } else {
+              throw { __isMockResponse: true, response: { status: 404, data: { message: 'Solicitud no encontrada.' }, config } };
             }
           }
         }

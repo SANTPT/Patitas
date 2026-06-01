@@ -3,10 +3,12 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import { useChildrenStore } from '../../stores/children';
+import { useCitasStore } from '../../stores/citas';
 import api from '../../services/api';
 
 const authStore = useAuthStore();
 const childrenStore = useChildrenStore();
+const citasStore = useCitasStore();
 const route = useRoute();
 const router = useRouter();
 
@@ -20,6 +22,7 @@ const sessions = computed(() => childrenStore.sessions);
 const showAssignModal = ref(false);
 const showSessionModal = ref(false);
 const showProgressModal = ref(false);
+const showAgendarModal = ref(false);
 
 // Professional List for assignment
 const professionals = ref([]);
@@ -50,11 +53,22 @@ const progressForm = ref({
 });
 const isUpdatingProgress = ref(false);
 
+// Agenda Form State
+const agendaForm = ref({
+  date: new Date().toISOString().split('T')[0],
+  time: '10:00',
+  type: 'Logopedia',
+  duration: 45,
+  notes: '',
+  professionalId: ''
+});
+const isAgendando = ref(false);
+
 onMounted(async () => {
   await loadChildData();
 
-  if (userRole.value === 'admin_centro') {
-    // Cargar profesionales para asignar
+  if (userRole.value === 'admin_centro' || userRole.value === 'admin_profesional') {
+    // Cargar profesionales para asignar/agendar
     try {
       const resp = await api.get('/admin/users');
       professionals.value = resp.data.filter(
@@ -314,6 +328,49 @@ async function handleSaveProgress() {
     await loadChildData();
   }
 }
+
+function openAgendarCitaModal() {
+  agendaForm.value = {
+    date: new Date().toISOString().split('T')[0],
+    time: '10:00',
+    type: child.value?.diagnostico?.includes('Lenguaje') ? 'Terapia de Lenguaje' : 'Terapia de Psicomotricidad',
+    duration: 45,
+    notes: '',
+    professionalId: child.value?.profesionalId || ''
+  };
+  showAgendarModal.value = true;
+}
+
+async function handleAgendarCita() {
+  if (!agendaForm.value.date || !agendaForm.value.time) return;
+  isAgendando.value = true;
+
+  const prof = professionals.value.find(p => p.id === parseInt(agendaForm.value.professionalId));
+  const payload = {
+    childId: child.value.id,
+    childName: child.value.name,
+    professionalId: prof ? prof.id : null,
+    professionalName: prof ? prof.name : 'Profesional de Apoyo',
+    date: agendaForm.value.date,
+    time: agendaForm.value.time,
+    type: agendaForm.value.type,
+    duration: parseInt(agendaForm.value.duration) || 45,
+    notes: agendaForm.value.notes || '',
+    centroId: authStore.user.centroId || child.value.centroId,
+    status: 'programada'
+  };
+
+  const res = await citasStore.createCita(payload);
+  isAgendando.value = false;
+  if (res.success) {
+    showAgendarModal.value = false;
+    window.dispatchEvent(new CustomEvent('show-toast', {
+      detail: { message: 'Cita agendada con éxito.', type: 'success' }
+    }));
+  } else {
+    alert(res.error || 'Error al agendar la cita.');
+  }
+}
 </script>
 
 <template>
@@ -491,14 +548,22 @@ async function handleSaveProgress() {
     <section class="sessions-section">
       <div class="sessions-header">
         <h3 class="section-title">Historial de Sesiones Terapéuticas</h3>
-        <button 
-          v-if="userRole !== 'user'"
-          class="btn-primary" 
-          @click="openSessionModal"
-        >
-          <span class="material-symbols-outlined">add</span>
-          Registrar Sesión
-        </button>
+        <div v-if="userRole !== 'user'" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <button 
+            class="btn-primary" 
+            @click="openSessionModal"
+          >
+            <span class="material-symbols-outlined">add</span>
+            Registrar Sesión
+          </button>
+          <button 
+            class="btn-secondary" 
+            @click="openAgendarCitaModal"
+          >
+            <span class="material-symbols-outlined">calendar_today</span>
+            Agendar Cita
+          </button>
+        </div>
       </div>
 
       <div v-if="!sessions || sessions.length === 0" class="no-sessions-card">
@@ -754,6 +819,60 @@ async function handleSaveProgress() {
             </button>
             <button type="submit" class="btn-submit" :disabled="isUpdatingProgress">
               <span>Actualizar Radar</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Agendar Nueva Cita -->
+    <div v-if="showAgendarModal" class="modal-overlay">
+      <div class="form-modal">
+        <h3 class="modal-title">Agendar Nueva Cita</h3>
+        <p class="modal-desc">Asigne una fecha, hora y terapeuta para la próxima sesión.</p>
+
+        <form @submit.prevent="handleAgendarCita" class="modal-form-content">
+          <div class="form-group">
+            <label for="agendaFecha">Fecha *</label>
+            <input id="agendaFecha" type="date" v-model="agendaForm.date" required class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label for="agendaHora">Hora *</label>
+            <input id="agendaHora" type="time" v-model="agendaForm.time" required class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label for="agendaTipo">Tipo de Terapia *</label>
+            <input id="agendaTipo" type="text" v-model="agendaForm.type" placeholder="Ej: Logopedia" required class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label for="agendaDur">Duración (Minutos) *</label>
+            <input id="agendaDur" type="number" v-model="agendaForm.duration" required class="form-control" />
+          </div>
+
+          <div class="form-group">
+            <label for="agendaProf">Profesional Asignado *</label>
+            <select id="agendaProf" v-model="agendaForm.professionalId" required class="form-control">
+              <option value="">Selecciona un profesional...</option>
+              <option v-for="prof in professionals" :key="prof.id" :value="prof.id">
+                {{ prof.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="agendaNotes">Notas adicionales</label>
+            <textarea id="agendaNotes" v-model="agendaForm.notes" rows="2" class="form-control textarea-control" placeholder="Observaciones breves..."></textarea>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" @click="showAgendarModal = false">
+              Cancelar
+            </button>
+            <button type="submit" class="btn-submit" :disabled="isAgendando">
+              <span>Agendar</span>
             </button>
           </div>
         </form>

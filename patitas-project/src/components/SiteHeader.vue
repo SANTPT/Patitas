@@ -43,19 +43,43 @@
 
         <!-- Botón dinámico según estado de sesión -->
         <template v-if="authStore.isAuthenticated">
-          <div class="user-pill" @click="router.push('/dashboard')" role="button" tabindex="0" aria-label="Ir a mi panel" id="header-panel-btn">
-            <img v-if="authStore.user?.avatar" :src="authStore.user.avatar" class="user-avatar-img" alt="Avatar" />
-            <span v-else class="user-avatar">{{ authStore.initials }}</span>
-            <div class="user-pill-info">
-              <span class="user-name">{{ authStore.displayName }}</span>
-              <span class="user-pill-label">
-                <span class="material-symbols-outlined" style="font-size:0.8rem;">dashboard</span>
-                Mi panel
-              </span>
+          <div class="user-pill-container" id="header-panel-btn">
+            <div class="user-pill" @click.stop="toggleUserDropdown" role="button" tabindex="0" aria-label="Menú de usuario">
+              <img v-if="authStore.user?.avatar" :src="authStore.user.avatar" class="user-avatar-img" alt="Avatar" />
+              <span v-else class="user-avatar">{{ authStore.initials }}</span>
+              <div class="user-pill-info">
+                <span class="user-name">{{ authStore.displayName }}</span>
+                <span class="user-pill-label">
+                  <span class="material-symbols-outlined" style="font-size:0.8rem;">person</span>
+                  Mi cuenta
+                </span>
+              </div>
+              <span class="material-symbols-outlined dropdown-arrow" :class="{ 'is-open': showUserDropdown }">expand_more</span>
             </div>
-            <button class="logout-btn" @click.stop="authStore.logout()" aria-label="Cerrar sesión">
-              <span class="material-symbols-outlined">logout</span>
-            </button>
+
+            <!-- Menú Desplegable -->
+            <transition name="dropdown-fade">
+              <div v-if="showUserDropdown" class="user-dropdown-menu" @click.stop>
+                <div class="dropdown-user-info">
+                  <span class="dropdown-user-name">{{ authStore.user?.name || authStore.displayName }}</span>
+                  <span class="dropdown-user-role">{{ getRoleLabel(authStore.user?.role) }}</span>
+                </div>
+                <div class="dropdown-divider"></div>
+                <RouterLink :to="dashboardUrl" class="dropdown-link-btn" @click="showUserDropdown = false">
+                  <span class="material-symbols-outlined">dashboard</span>
+                  Mi panel
+                </RouterLink>
+                <RouterLink :to="profileUrl" class="dropdown-link-btn" @click="showUserDropdown = false">
+                  <span class="material-symbols-outlined">manage_accounts</span>
+                  Mi perfil
+                </RouterLink>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-link-btn logout" @click="handleLogout">
+                  <span class="material-symbols-outlined">logout</span>
+                  Cerrar sesión
+                </button>
+              </div>
+            </transition>
           </div>
         </template>
         <template v-else>
@@ -94,14 +118,26 @@
         <!-- Sección de Autenticación Móvil -->
         <li class="mobile-auth-item">
           <template v-if="authStore.isAuthenticated">
-            <div class="mobile-user-row" style="cursor: pointer;" @click="router.push('/dashboard'); menuOpen = false">
-              <img v-if="authStore.user?.avatar" :src="authStore.user.avatar" class="user-avatar-img" alt="Avatar" />
-              <span v-else class="user-avatar">{{ authStore.initials }}</span>
-              <span class="user-name">{{ authStore.displayName }}</span>
-              <button class="mobile-logout-btn" @click.stop="authStore.logout(); menuOpen = false" aria-label="Cerrar sesión">
-                <span class="material-symbols-outlined">logout</span>
-                Cerrar Sesión
-              </button>
+            <div class="mobile-user-row">
+              <div class="mobile-user-info">
+                <img v-if="authStore.user?.avatar" :src="authStore.user.avatar" class="user-avatar-img" alt="Avatar" />
+                <span v-else class="user-avatar">{{ authStore.initials }}</span>
+                <span class="user-name">{{ authStore.displayName }}</span>
+              </div>
+              <div class="mobile-user-links">
+                <RouterLink :to="dashboardUrl" class="mobile-action-btn" @click="menuOpen = false">
+                  <span class="material-symbols-outlined">dashboard</span>
+                  Mi panel
+                </RouterLink>
+                <RouterLink :to="profileUrl" class="mobile-action-btn" @click="menuOpen = false">
+                  <span class="material-symbols-outlined">manage_accounts</span>
+                  Mi perfil
+                </RouterLink>
+                <button class="mobile-logout-btn" @click="handleLogout(); menuOpen = false" aria-label="Cerrar sesión">
+                  <span class="material-symbols-outlined">logout</span>
+                  Cerrar Sesión
+                </button>
+              </div>
             </div>
           </template>
           <template v-else>
@@ -203,8 +239,53 @@ const isSticky = ref(false);
 const isCartOpen = ref(false);
 const route = useRoute();
 
+const showUserDropdown = ref(false);
+
+const toggleUserDropdown = () => {
+  showUserDropdown.value = !showUserDropdown.value;
+};
+
+const getRoleLabel = (role) => {
+  if (!role) return 'Usuario';
+  const map = {
+    superadmin: 'Super Administrador',
+    admin_centro: 'Administrador de Centro',
+    admin_profesional: 'Profesional',
+    user: 'Familiar / Usuario'
+  };
+  return map[role] || role;
+};
+
+const dashboardUrl = computed(() => {
+  const role = authStore.user?.role || 'user';
+  if (role === 'superadmin')        return '/dashboard/superadmin';
+  if (role === 'admin_centro')      return '/dashboard/admin-centro';
+  if (role === 'admin_profesional') return '/dashboard/admin-profesional';
+  return '/dashboard/usuario';
+});
+
+const profileUrl = computed(() => {
+  const role = authStore.user?.role || 'user';
+  if (role === 'superadmin')        return '/dashboard/superadmin/perfil';
+  if (role === 'admin_centro')      return '/dashboard/admin-centro/perfil';
+  if (role === 'admin_profesional') return '/dashboard/admin-profesional/perfil';
+  return '/dashboard/usuario/perfil';
+});
+
+const handleLogout = () => {
+  showUserDropdown.value = false;
+  authStore.logout();
+};
+
+const closeUserDropdownOutside = (e) => {
+  const container = document.getElementById('header-panel-btn');
+  if (container && !container.contains(e.target)) {
+    showUserDropdown.value = false;
+  }
+};
+
 const navItems = computed(() => {
-  const items = [
+  return [
     { label: 'inicio',   href: '/' },
     { label: 'recursos', href: '/recursos' },
     { label: 'comunidad patitas', href: '/comunidad' },
@@ -212,10 +293,6 @@ const navItems = computed(() => {
     { label: 'tienda',   href: '/tienda' },
     { label: 'contacto', href: '/contacto' },
   ];
-  if (authStore.isAuthenticated) {
-    items.push({ label: 'mi panel', href: '/dashboard' });
-  }
-  return items;
 });
 
 const handleScroll = () => {
@@ -241,11 +318,13 @@ const openCartDrawer = () => {
 onMounted(() => {
   window.addEventListener('scroll', handleScroll);
   window.addEventListener('open-cart-drawer', openCartDrawer);
+  window.addEventListener('click', closeUserDropdownOutside);
 });
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
   window.removeEventListener('open-cart-drawer', openCartDrawer);
+  window.removeEventListener('click', closeUserDropdownOutside);
 });
 </script>
 
@@ -1011,5 +1090,158 @@ onUnmounted(() => {
 .drawer-slide-enter-from,
 .drawer-slide-leave-to {
   transform: translateX(100%);
+}
+
+/* ─── USER PILL DROPDOWN ─── */
+.user-pill-container {
+  position: relative;
+}
+
+.dropdown-arrow {
+  font-size: 1.1rem;
+  color: var(--text-blue);
+  transition: transform 0.2s ease;
+  margin-left: 0.2rem;
+}
+
+.dropdown-arrow.is-open {
+  transform: rotate(180deg);
+}
+
+.user-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  background: white;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(26, 91, 130, 0.08);
+  box-shadow: 0 10px 30px rgba(26, 91, 130, 0.12);
+  width: 14rem;
+  padding: 0.6rem 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 110;
+  transform-origin: top right;
+}
+
+.dropdown-user-info {
+  padding: 0.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.dropdown-user-name {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-blue);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-user-role {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--button-purple);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: rgba(26, 91, 130, 0.06);
+  margin: 0.4rem 0;
+}
+
+.dropdown-link-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 1rem;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-blue);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.dropdown-link-btn:hover {
+  background: rgba(197, 140, 242, 0.08);
+  color: var(--button-purple);
+}
+
+.dropdown-link-btn.logout {
+  color: #ef4444;
+}
+
+.dropdown-link-btn.logout:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.dropdown-link-btn .material-symbols-outlined {
+  font-size: 1.15rem;
+}
+
+/* Transición dropdown */
+.dropdown-fade-enter-active,
+.dropdown-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.dropdown-fade-enter-from,
+.dropdown-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+/* Mobile user styling adjustment */
+.mobile-user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.8rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.mobile-user-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.mobile-action-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.44rem;
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  background: white;
+  color: var(--text-blue);
+  border: 1px solid rgba(26, 91, 130, 0.12);
+  border-radius: 5.5rem;
+  padding: 0.56rem 1.11rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.mobile-action-btn:hover {
+  background: var(--button-purple-soft);
+  color: var(--button-purple);
+  border-color: var(--button-purple);
 }
 </style>
